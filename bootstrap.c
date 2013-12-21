@@ -20,6 +20,7 @@
 typedef enum obj_type {
 	scm_bool,
 	scm_empty_list,
+	scm_eof,
 	scm_char,
 	scm_int,
 	scm_pair,
@@ -53,6 +54,7 @@ typedef struct object {
 
 object *true;
 object *false;
+object *eof;
 object *empty_list;
 object *std_input;
 object *std_output;
@@ -106,6 +108,9 @@ void init_constants(void)
 	std_output = alloc_obj();
 	std_output->type = scm_file;
 	std_output->data.file = stdout;
+
+	eof = alloc_obj();
+	eof->type = scm_eof;
 }
 
 object *make_int(int value)
@@ -314,7 +319,7 @@ object *eval(object *code)
  * Print
  */
 
-void print(FILE *out, object *obj)
+void print(FILE *out, object *obj, int display)
 {
 	switch(obj->type) {
 	case scm_int:
@@ -323,24 +328,26 @@ void print(FILE *out, object *obj)
 	case scm_bool:
 		fprintf(out, obj2bool(obj) ? "#t" : "#f");
 		break;
-	case scm_char: { /* curly brace required for scope of variable c*/
-		char c = obj2char(obj);
-		fprintf(out, "#\\");
-		switch(c) {
-		case ' ':
-			fprintf(out, "space");
-			break;
-		case '\n':
-			fprintf(out, "newline");
-			break;
-		case '\t':
-			fprintf(out, "tab");
-			break;
-		default:
-			fputc(c, out);
-		}
+	case scm_char:
+		if (display) fputc(obj2char(obj), out);
+		else{
+				char c = obj2char(obj);
+				fprintf(out, "#\\");
+				switch(c) {
+				case ' ':
+					fprintf(out, "space");
+					break;
+				case '\n':
+					fprintf(out, "newline");
+					break;
+				case '\t':
+					fprintf(out, "tab");
+					break;
+				default:
+					fputc(c, out);
+				}
+			}
 		break;
-	}
 	default:
 		fprintf(stderr, "Unkown data type in write\n");
 		exit(1);
@@ -351,7 +358,7 @@ void print(FILE *out, object *obj)
 /*
  * REPL
  */
-int main(void)
+int main(int argc, const char **argv)
 {
 	printf("Welcome to bootstrap scheme. \n%s",
 		  "Press ctrl-c to exit. \n");
@@ -360,7 +367,7 @@ int main(void)
 
 	while(1){
 		printf("> ");
-		print(stdout, eval(read(stdin)));
+		print(stdout, eval(read(stdin)), argc - 1);
 		printf("\n");
 	}
 }
