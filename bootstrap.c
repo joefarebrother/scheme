@@ -156,12 +156,11 @@ object *make_str(char *str)
 {
 	object *obj = alloc_obj();
 	obj->type = scm_str;
-	obj->data.str = malloc(strlen(str) + 1);
-	if (obj->data.str = NULL){
+	obj->data.str = strdup(str);
+	if (obj->data.str == NULL){
 		fprintf(stderr, "Out of memory.\n");
 		exit(1);
 	}
-	strcpy(obj->data.str, str);
 	return obj;
 }
 
@@ -298,7 +297,35 @@ object *read(FILE *in)
 			exit(1);
 		}
 	}
-	else{
+	else if (c == '"')
+	{
+		/* read string */
+#define BUF_MAX 1024
+		char buf[BUF_MAX];
+		int len = 0;
+
+		while ((c = getc(in)) != '"'){
+			if (c == EOF){
+				fprintf(stderr, "Non terminated string literal.\n");
+				exit(1);
+			}
+
+			if (c == '\\'){
+				c = getc(in);
+				if (c == 'n') c = '\n';
+				if (c == 't') c = '\t';
+			}
+
+			buf[len++] = c;
+			if (len == BUF_MAX){
+				fprintf(stderr, "String too long. Maximum length is %d.\n", BUF_MAX);
+				exit(1);
+			}
+		}
+		buf[len] = '\0';
+		return make_str(buf);
+	}
+	else {
 		fprintf(stderr, "Bad input. Unexpected %c.\n", c);
 		exit(1);
 	}
@@ -348,8 +375,36 @@ void print(FILE *out, object *obj, int display)
 				}
 			}
 		break;
+	case scm_str:
+		if (display) fprintf(out, "%s", obj2str(obj));
+		else {
+			char *ptr = obj2str(obj);
+
+			fputc('"', out);
+			while (*ptr != '\0'){
+				char c = *ptr++;
+				switch (c){
+				case '\n':
+					fprintf(out, "\\n");
+					break;
+				case '\t':
+					fprintf(out, "\\t");
+					break;
+				case '\\':
+					fprintf(out, "\\\\");
+					break;
+				case '"':
+					fprintf(out, "\\\"");
+				default:
+					fputc(c, out);
+				}
+			}
+			fputc('"', out);
+		}
+		break;
+
 	default:
-		fprintf(stderr, "Unkown data type in write\n");
+		fprintf(stderr, "Unknown data type in write.\n");
 		exit(1);
 	}
 }
