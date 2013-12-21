@@ -64,6 +64,11 @@ int check_type(enum obj_type type, object *obj, int err_on_false)
 	return result;
 }
 
+int is_true(object *obj)
+{
+	return obj != the_false_obj;
+}
+
 object *alloc_obj(void)
 {
 	object *obj;
@@ -88,6 +93,17 @@ object *make_int(int value)
 int obj2int(object *obj)
 {
 	check_type(scm_int, obj, 1);
+	return obj->data.i;
+}
+
+object *make_bool(int value)
+{
+	return value ? the_true_obj : the_false_obj;
+}
+
+int obj2bool(object *obj)
+{
+	check_type(scm_bool, obj, 1);
 	return obj->data.i;
 }
 
@@ -125,7 +141,7 @@ void eat_ws(FILE *in)
 
 object *read(FILE *in)
 {
-	int c; 
+	char c; 
 
 	eat_ws(in);
 
@@ -141,7 +157,7 @@ object *read(FILE *in)
 		
 
 		while (isdigit(c = getc(in)))
-			num = (num * 10) + c - '0';
+			num = (num * 10) + (int)c - '0';
 
 		num *= sign;
 
@@ -151,6 +167,18 @@ object *read(FILE *in)
 		}
 
 		return make_int(num);
+	}
+	else if (c == '#'){
+		/* read boolean (or, later, a character) */
+		switch(c = getc(in)){
+		case 't':
+			return the_true_obj;
+		case 'f':
+			return the_false_obj;
+		default:
+			fprintf(stderr, "Bad input. Expecting t or f, got %c.\n", c);
+			exit(1);
+		}
 	}
 	else{
 		fprintf(stderr, "Bad input. Unexpected %c.\n", c);
@@ -178,6 +206,9 @@ void print(FILE *out, object *obj)
 	switch(obj->type){
 	case scm_int:
 		fprintf(out, "%d", obj2int(obj));
+		break;
+	case scm_bool:
+		fprintf(out, obj2bool ? "#t" : "#f");
 		break;
 	default:
 		fprintf(stderr, "Unkown data type in write\n");
