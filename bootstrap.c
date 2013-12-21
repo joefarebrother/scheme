@@ -1,11 +1,12 @@
 /* 
  * A quick and dirty scheme interpreter for bootstrapping the 
  * compiler for the first time. Has pairs, lambdas, strings, 
- * integers, characters, symbols, and IO, no vectors or macros
- * as they are not needed by the compiler. Includes a very simple 
- * reference-counting GC that will leak memory on circular 
- * structures, which is ok because only one (the global 
- * enviroment) is used. Based on SICP.
+ * integers, characters, symbols, and IO, but no vectors or macros 
+ * or continuations as they are not needed by the compiler. 
+ * Includes a very simple reference-counting GC that will leak 
+ * memory on circular structures, which is ok because only one 
+ * (the global enviroment) is used. Based on SICP and 
+ * http://michaux.ca/articles/scheme-from-scratch-introduction.
  */
 
 #include <stdio.h>
@@ -49,9 +50,9 @@ typedef struct object {
 	} data;
 } object;
 
-static object *false_obj = &(object){scm_bool, 0, {.i=0}};
-static object *true_obj = &(object){scm_bool, 0, {.i=1}};
-static object *empty_list = &(object){scm_empty_list, 0, {.i=2}};
+static object *the_false_obj = &(object){scm_bool, 0, {.i=0}};
+static object *the_true_obj = &(object){scm_bool, 0, {.i=1}};
+static object *the_empty_list = &(object){scm_empty_list, 0, {.i=2}};
 
 int check_type(enum obj_type type, object *obj, int err_on_false)
 {
@@ -95,27 +96,107 @@ int obj2int(object *obj)
  * Read
  */
 
+int is_delimiter(char c)
+{
+	return isspace(c) || c == EOF ||
+		   c == '('   || c == ')' ||
+		   c == '"'   || c == ';';
+}
+
+char peek(FILE *in){
+	char c = getc(in);
+	ungetc(c, in);
+	return c;
+}
+
+void eat_ws(FILE *in)
+{
+	char c;
+	while((c = getc(in)) != EOF){
+		if (isspace(c)) continue;
+		else if (c == ';'){  /* comment - ignore */
+			while((c = getc(in)) != '\n');
+			continue;
+		}
+		ungetc(c, in);
+		break;
+	}
+}
+
+object *read(FILE *in)
+{
+	int c; 
+
+	eat_ws(in);
+
+	c = getc(in);
+	if (isdigit(c) || (c == '-' && isdigit(peek(in))))
+	{
+		/* read an integer */
+		int sign = 1, num = 0;
+		if (c == '-')
+			sign = -1;
+		else 
+			ungetc(c, in);
+		
+
+		while (isdigit(c = getc(in)))
+			num = (num * 10) + c - '0';
+
+		num *= sign;
+
+		if (!is_delimiter(c)) {
+			fprintf(stderr, "Number did not end with a delimiter\n");
+			exit(1);
+		}
+
+		return make_int(num);
+	}
+	else{
+		fprintf(stderr, "Bad input. Unexpected %c.\n", c);
+		exit(1);
+	}
+}
 
 
 /*
  * Eval
  */
 
-
+object *eval(object *code)
+{
+	/* Until we have lists and symbols just echo */
+	return code;
+}
 
 /*
  * Print
  */
 
-
+void print(FILE *out, object *obj)
+{
+	switch(obj->type){
+	case scm_int:
+		fprintf(out, "%d", obj2int(obj));
+		break;
+	default:
+		fprintf(stderr, "Unkown data type in write\n");
+		exit(1);
+	}
+}
 
 
 /*
- * Loop
+ * REPL
  */
 int main(void)
 {
-	/* stub */
-	printf("Not implemented yet\n");
-	return 0;
+	printf("Welcome to bootstrap scheme. \n%s",
+		  "Press ctrl-c to exit");
+
+	while(1){
+		printf(">");
+		print(stdout, eval(read(stdin)));
+		printf("\n");
+	}
 }

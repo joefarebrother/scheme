@@ -1,1 +1,1 @@
-;;;; A scheme compiler written in scheme to the 'assembly' language accepted by vm.c
+;;;; A scheme compiler written in scheme to the bytecode accepted by vm.c
