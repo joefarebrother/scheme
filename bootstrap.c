@@ -33,7 +33,7 @@ typedef struct object {
 	enum obj_type type;
 	int refs;
 	union {
-		char ch;
+		char c;
 		int i;
 		struct {
 			struct object *car;
@@ -50,9 +50,12 @@ typedef struct object {
 	} data;
 } object;
 
-static object *the_false_obj = &(object){scm_bool, 0, {.i=0}};
-static object *the_true_obj = &(object){scm_bool, 0, {.i=1}};
-static object *the_empty_list = &(object){scm_empty_list, 0, {.i=2}};
+object *true;
+object *false;
+object *empty_list;
+object *std_input;
+object *std_output;
+
 
 int check_type(enum obj_type type, object *obj, int err_on_false)
 {
@@ -66,7 +69,7 @@ int check_type(enum obj_type type, object *obj, int err_on_false)
 
 int is_true(object *obj)
 {
-	return obj != the_false_obj;
+	return obj != false;
 }
 
 object *alloc_obj(void)
@@ -80,6 +83,28 @@ object *alloc_obj(void)
 	}
 	obj->refs = 0;
 	return obj;
+}
+
+void init_constants(void)
+{
+	true = alloc_obj();
+	true->type = scm_bool;
+	true->data.i = 1;
+
+	false = alloc_obj();
+	false->type = scm_bool;
+	false->data.i = 0;
+
+	empty_list = alloc_obj();
+	empty_list->type = scm_empty_list;
+
+	std_input = alloc_obj();
+	std_input->type = scm_file;
+	std_input->data.file = stdin;
+
+	std_output = alloc_obj();
+	std_output->type = scm_file;
+	std_output->data.file = stdout;
 }
 
 object *make_int(int value)
@@ -98,7 +123,7 @@ int obj2int(object *obj)
 
 object *make_bool(int value)
 {
-	return value ? the_true_obj : the_false_obj;
+	return value ? true : false;
 }
 
 int obj2bool(object *obj)
@@ -107,6 +132,19 @@ int obj2bool(object *obj)
 	return obj->data.i;
 }
 
+object *make_char(char c)
+{
+	object *obj = alloc_obj();
+	obj->type = scm_char;
+	obj->data.c = c;
+	return obj;
+}
+
+char obj2char(object *obj)
+{
+	check_type(scm_char, obj, 1);
+	return obj->data.c;
+}
 
 /*
  * Read
@@ -139,6 +177,59 @@ void eat_ws(FILE *in)
 	}
 }
 
+void eat_expected_str(FILE *in, char *str)
+{
+	char c;
+
+	while(*str != '\0'){
+		c = getc(in);
+		if(c != *str++){
+			fprintf(stderr, "Unexpected character: expecting %s, got %c\n", str, c);
+			exit(1);
+		}
+	}
+}
+
+void expect_delim(FILE *in)
+{
+	if(!is_delimiter(peek(in))){
+		fprintf(stderr, "Unexpected character: expecting a delimiter, got %c.\n", peek(in));
+		exit(1);
+	}
+}
+
+object *read_char(FILE *in) 
+{
+    char c;
+
+    c = getc(in);
+    switch (c) {
+    case EOF:
+        fprintf(stderr, "incomplete character literal\n");
+        exit(1);
+    case 's':
+        if (peek(in) == 'p') {
+            eat_expected_str(in, "pace");
+            c = ' ';
+        }
+        break;
+    case 'n':
+        if (peek(in) == 'e') {
+            eat_expected_str(in, "ewline");
+            c = '\n';
+        }
+        break;
+    case 't':
+    	if (peek(in) == 'a'){
+    		eat_expected_str(in, "ab");
+    		c = '\t';
+    	}
+    	break;
+    }
+    expect_delim(in);
+    return make_char(c);
+}
+
 object *read(FILE *in)
 {
 	char c; 
@@ -169,14 +260,16 @@ object *read(FILE *in)
 		return make_int(num);
 	}
 	else if (c == '#'){
-		/* read boolean (or, later, a character) */
+		/* read boolean or character */
 		switch(c = getc(in)){
 		case 't':
-			return the_true_obj;
+			return true;
 		case 'f':
-			return the_false_obj;
+			return false;
+		case '\\':
+			return read_char(in);
 		default:
-			fprintf(stderr, "Bad input. Expecting t or f, got %c.\n", c);
+			fprintf(stderr, "Bad input. Expecting t, f, or \\, got %c.\n", c);
 			exit(1);
 		}
 	}
@@ -203,13 +296,31 @@ object *eval(object *code)
 
 void print(FILE *out, object *obj)
 {
-	switch(obj->type){
+	switch(obj->type) {
 	case scm_int:
 		fprintf(out, "%d", obj2int(obj));
 		break;
 	case scm_bool:
-		fprintf(out, obj2bool ? "#t" : "#f");
+		fprintf(out, obj2bool(obj) ? "#t" : "#f");
 		break;
+	case scm_char: { /* curly brace required for scope of variable c*/
+		char c = obj2char(obj);
+		fprintf(out, "#\\");
+		switch(c) {
+		case ' ':
+			fprintf(out, "space");
+			break;
+		case '\n':
+			fprintf(out, "newline");
+			break;
+		case '\t':
+			fprintf(out, "tab");
+			break;
+		default:
+			fputc(c, out);
+		}
+		break;
+	}
 	default:
 		fprintf(stderr, "Unkown data type in write\n");
 		exit(1);
@@ -223,10 +334,12 @@ void print(FILE *out, object *obj)
 int main(void)
 {
 	printf("Welcome to bootstrap scheme. \n%s",
-		  "Press ctrl-c to exit");
+		  "Press ctrl-c to exit. \n");
+
+	init_constants();
 
 	while(1){
-		printf(">");
+		printf("> ");
 		print(stdout, eval(read(stdin)));
 		printf("\n");
 	}
