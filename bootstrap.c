@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /*
  * DATA
@@ -78,7 +79,7 @@ object *alloc_obj(void)
 	obj = malloc(sizeof(object));
 	if (obj == NULL)
 	{
-		fprintf(stderr, "Out of memory\n");
+		fprintf(stderr, "Out of memory.\n");
 		exit(1);
 	}
 	obj->refs = 0;
@@ -146,6 +147,25 @@ char obj2char(object *obj)
 	return obj->data.c;
 }
 
+object *make_str(char *str)
+{
+	object *obj = alloc_obj();
+	obj->type = scm_str;
+	obj->data.str = malloc(strlen(str) + 1);
+	if (obj->data.str = NULL){
+		fprintf(stderr, "Out of memory.\n");
+		exit(1);
+	}
+	strcpy(obj->data.str, str);
+	return obj;
+}
+
+char *obj2str(object *obj)
+{
+	check_type(scm_str, obj, 1);
+	return obj->data.str;
+}
+
 /*
  * Read
  */
@@ -165,7 +185,7 @@ char peek(FILE *in){
 
 void eat_ws(FILE *in)
 {
-	char c;
+	int c;
 	while((c = getc(in)) != EOF){
 		if (isspace(c)) continue;
 		else if (c == ';'){  /* comment - ignore */
@@ -200,12 +220,12 @@ void expect_delim(FILE *in)
 
 object *read_char(FILE *in) 
 {
-    char c;
+    int c;
 
     c = getc(in);
     switch (c) {
     case EOF:
-        fprintf(stderr, "incomplete character literal\n");
+        fprintf(stderr, "Incomplete character literal.\n");
         exit(1);
     case 's':
         if (peek(in) == 'p') {
@@ -232,7 +252,7 @@ object *read_char(FILE *in)
 
 object *read(FILE *in)
 {
-	char c; 
+	int c; 
 
 	eat_ws(in);
 
