@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "cxrs.h"
 
 /*
  * DATA
@@ -201,14 +202,6 @@ object *cdr(object *obj)
 	return obj->data.pair.cdr;
 }
 
-#define caar(x) car(car(x))
-#define cadr(x) car(cdr(x))
-#define cdar(x) cdr(car(x))
-#define cddr(x) cdr(cdr(x))
-/* 
- * That's all we need at the moment - 
- * I might make a shell script to generate them.
- */
 
 object *make_symbol(char *name)
 {
