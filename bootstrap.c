@@ -244,7 +244,8 @@ int is_delimiter(int c) /*int not char because it might be EOF */
 {
 	return isspace(c) || c == EOF ||
 		   c == '('   || c == ')' ||
-		   c == '"'   || c == ';';
+		   c == '"'   || c == ';' ||
+		   c == '\'';
 }
 
 char peek(FILE *in){
@@ -438,6 +439,12 @@ object *read(FILE *in)
 		/* read a list */
 		return read_list(in);
 	}
+	else if (c == '\''){
+		/* quote */
+		return cons(get_symbol("QUOTE"), 
+			cons(read(in), empty_list));
+	}
+
 	else if (!is_delimiter(c)) {
 		/*read a symbol*/
 		char buf[BUF_MAX];
@@ -445,7 +452,7 @@ object *read(FILE *in)
 		ungetc(c, in);
 
 		while(!is_delimiter(c = getc(in))){
-			buf[len++] = c;
+			buf[len++] = toupper(c);
 			if (len == BUF_MAX) {
 				fprintf(stderr, "Symbol too long. Makimum length is %d.\n", BUF_MAX);
 				exit(1);
@@ -455,28 +462,64 @@ object *read(FILE *in)
 		buf[len] = '\0';
 		return get_symbol(buf);
 	}
+
 	else {
-		fprintf(stderr, "Bad input. Unexpected %c.\n", c);
+		fprintf(stderr, "Bad input: Unexpected %c.\n", c);
 		exit(1);
 	}
 }
 
 
 /*
- * Eval
+ * Eval - based on SICP
  */
+
+void print(FILE *out, object *obj, int display);
+
+int self_evaluating(object *code){
+#define check(x) check_type(scm_ ## x, code, 0)
+ 	return check(int) || check(str) || check(char) || check(eof) || check(bool);
+#undef check
+}
+
+object *eval_list(object *code)
+{
+	if (car(code) == get_symbol("QUOTE")){
+		if (!check_type(scm_pair, cdr(code), 0) || (cddr(code) != empty_list)){
+			fprintf(stderr, "Evaluation error: bad QUOTE form: ");
+			print(stderr, code, 0);
+			fputc('\n', stderr);
+			exit(1);
+		}
+		return cadr(code);
+	}
+	else {
+		fprintf(stderr, "Evaluation error: can't evaluate ");
+		print(stderr, code, 0);
+		fputc('\n', stderr);
+		exit(1);
+	}
+}
 
 object *eval(object *code)
 {
-	/* Until we have lists and symbols just echo */
-	return code;
+	if(self_evaluating(code))
+		return code;
+	else if (check_type(scm_pair, code, 0)){
+		return eval_list(code);
+	}
+	else {
+		fprintf(stderr, "Evaluation error: can't evaluate ");
+		print(stderr, code, 0);
+		fputc('\n', stderr);
+		exit(1);
+	}
 }
 
 /*
  * Print
  */
 
-void print(FILE *out, object *obj, int display);
 
 void print_list(FILE *out, object *list, int display)
 {

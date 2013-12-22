@@ -26,7 +26,7 @@ outputone(){
 		definition="${definition}c${i}r("
 		paren=")$paren"
 	done
-	echo "#define ${macro}r(x) ${definition}x)$paren"
+	echo "#define ${macro}r(x) ${definition}x$paren"
 }
 
 #Outputs several definitions given strings of as and ds as inputs
