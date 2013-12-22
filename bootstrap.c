@@ -170,6 +170,29 @@ char *obj2str(object *obj)
 	return obj->data.str;
 }
 
+object *cons(object *car, object *cdr)
+{
+	object *obj = alloc_obj();
+	obj->type = scm_pair;
+	obj->data.pair.car = car;
+	obj->data.pair.cdr = cdr;
+	car->refs++;
+	cdr->refs++;
+	return obj;
+}
+
+object *car(object *obj)
+{
+	check_type(scm_pair, obj, 1);
+	return obj->data.pair.car;
+}
+
+object *cdr(object *obj)
+{
+	check_type(scm_pair, obj, 1);
+	return obj->data.pair.cdr;
+}
+
 /*
  * Read
  */
@@ -229,7 +252,7 @@ object *read_char(FILE *in)
     c = getc(in);
     switch (c) {
     case EOF:
-        fprintf(stderr, "Incomplete character literal.\n");
+        fprintf(stderr, "Unexpected end of file: Incomplete character literal.\n");
         exit(1);
     case 's':
         if (peek(in) == 'p') {
@@ -254,24 +277,42 @@ object *read_char(FILE *in)
     return make_char(c);
 }
 
-object *read_list(FILE *in)
-{
-	int c;
-	object *sofar = empty_list;
+object *read(FILE *in);
 
+object *read_list(FILE *in){
+	object *car, *cdr;
+	int c;
 	eat_ws(in);
 
 	c = getc(in);
-	switch(c){
-	case EOF:
-		fprintf(stderr, "Incompleted list.\n");
-		exit(1);
-	case ')':
-		return sofar;
-	default:
-		fprintf(stderr, "The empty list is the only one supported currently.\n");
+	if (c == ')')
+		return empty_list;
+	if (c == EOF){
+		fprintf(stderr, "Unexpected end of file: unclosed list.\n");
 		exit(1);
 	}
+	ungetc(c, in);
+
+	car = read(in);
+	eat_ws(in);
+
+	if(peek(in) == '.'){
+		getc(in);
+		if(!is_delimiter(c = peek(in))){
+			fprintf(stderr, "Bad list: expecting delimiter after dot, got %c.\n", c);
+			exit(1);
+		}
+		cdr = read(in);
+
+		eat_ws(in);
+		if (c = getc(in) != ')'){
+			fprintf(stderr, "Bad list: expecting ), got %c.\n", c);
+			exit(1);
+		}
+	}
+	else cdr = read_list(in);
+
+	return cons(car, cdr);
 }
 
 
@@ -300,10 +341,11 @@ object *read(FILE *in)
 		num *= sign;
 
 		if (!is_delimiter(c)) {
-			fprintf(stderr, "Number did not end with a delimiter\n");
+			fprintf(stderr, "Expecting delimiter after number, got %c.\n", c);
 			exit(1);
 		}
 
+		ungetc(c, in);
 		return make_int(num);
 	}
 	else if (c == '#'){
@@ -329,7 +371,7 @@ object *read(FILE *in)
 
 		while ((c = getc(in)) != '"'){
 			if (c == EOF){
-				fprintf(stderr, "Non terminated string literal.\n");
+				fprintf(stderr, "Unexpected end of file: Non terminated string literal.\n");
 				exit(1);
 			}
 
@@ -372,24 +414,53 @@ object *eval(object *code)
  * Print
  */
 
+void print(FILE *out, object *obj, int display);
+
+void print_list(FILE *out, object *list, int display)
+{
+	fputc('(', out);
+		print(out, car(list), display);
+	for (list = cdr(list); check_type(scm_pair, list, 0) ; list = cdr(list))
+	{
+		fputc(' ', out);
+		print(out, car(list), display);
+	}
+
+	if(list == empty_list)
+		fputc(')', out);
+	else {
+		fprintf(out, ". ");
+		print(out, list, display);
+		fputc(')', out);
+	}
+}
+
 void print(FILE *out, object *obj, int display)
 {
 	switch(obj->type) {
 	case scm_int:
 		fprintf(out, "%d", obj2int(obj));
 		break;
+
 	case scm_bool:
 		fprintf(out, obj2bool(obj) ? "#t" : "#f");
 		break;
+
 	case scm_eof:
 		fprintf(out, "#<eof object>");
 		break;
+
 	case scm_empty_list:
 		fprintf(out, "()");
 		break;
+
+	case scm_pair:
+		print_list(out, obj, display);
+		break;
+
 	case scm_char:
 		if (display) fputc(obj2char(obj), out);
-		else{
+		else {
 				char c = obj2char(obj);
 				fprintf(out, "#\\");
 				switch(c) {
@@ -407,6 +478,7 @@ void print(FILE *out, object *obj, int display)
 				}
 			}
 		break;
+
 	case scm_str:
 		if (display) fprintf(out, "%s", obj2str(obj));
 		else {
