@@ -58,6 +58,8 @@ object *eof;
 object *empty_list;
 object *std_input;
 object *std_output;
+object *std_error;
+object *symbol_table;
 
 
 int check_type(enum obj_type type, object *obj, int err_on_false)
@@ -109,8 +111,14 @@ void init_constants(void)
 	std_output->type = scm_file;
 	std_output->data.file = stdout;
 
+	std_output = alloc_obj();
+	std_output->type = scm_file;
+	std_output->data.file = stderr;
+
 	eof = alloc_obj();
 	eof->type = scm_eof;
+
+	symbol_table = empty_list;
 }
 
 object *make_int(int value)
@@ -193,11 +201,53 @@ object *cdr(object *obj)
 	return obj->data.pair.cdr;
 }
 
+#define caar(x) car(car(x))
+#define cadr(x) car(cdr(x))
+#define cdar(x) cdr(car(x))
+#define cddr(x) cdr(cdr(x))
+/* 
+ * That's all we need at the moment - 
+ * I might make a shell script to generate them.
+ */
+
+object *make_symbol(char *name)
+{
+	object *obj = make_str(name);
+	obj->type = scm_symbol;
+	return obj;
+}
+
+char *sym2str(object *obj)
+{
+	check_type(scm_symbol, obj, 1);
+	return obj->data.str;
+}
+
+object *get_symbol(char *name)
+{
+	/* 
+	 * This is a SLOW algorithm (O(n))
+	 * but it's the simplest one and 
+	 * speed isn't important here so
+	 * it's ok.
+	 */
+
+	object *sym, *table;
+	for(table = symbol_table; table != empty_list; table = cdr(table))
+		if(!strcmp(name, sym2str(car(table))))
+			return car(table);
+
+	sym = make_symbol(name);
+	symbol_table = cons(sym, symbol_table);
+	return sym;
+}
+
+
 /*
  * Read
  */
 
-int is_delimiter(char c)
+int is_delimiter(int c) /*int not char because it might be EOF */
 {
 	return isspace(c) || c == EOF ||
 		   c == '('   || c == ')' ||
@@ -209,6 +259,7 @@ char peek(FILE *in){
 	ungetc(c, in);
 	return c;
 }
+
 
 void eat_ws(FILE *in)
 {
@@ -318,6 +369,7 @@ object *read_list(FILE *in){
 
 object *read(FILE *in)
 {
+#define BUF_MAX 1024
 	int c; 
 
 	eat_ws(in);
@@ -365,7 +417,6 @@ object *read(FILE *in)
 	else if (c == '"')
 	{
 		/* read a string */
-#define BUF_MAX 1024
 		char buf[BUF_MAX];
 		int len = 0;
 
@@ -393,6 +444,23 @@ object *read(FILE *in)
 	else if (c == '('){
 		/* read a list */
 		return read_list(in);
+	}
+	else if (!is_delimiter(c)) {
+		/*read a symbol*/
+		char buf[BUF_MAX];
+		int len = 0;
+		ungetc(c, in);
+
+		while(!is_delimiter(c = getc(in))){
+			buf[len++] = c;
+			if (len == BUF_MAX) {
+				fprintf(stderr, "Symbol too long. Makimum length is %d.\n", BUF_MAX);
+				exit(1);
+			}
+		}
+		ungetc(c, in);
+		buf[len] = '\0';
+		return get_symbol(buf);
 	}
 	else {
 		fprintf(stderr, "Bad input. Unexpected %c.\n", c);
@@ -457,6 +525,10 @@ void print(FILE *out, object *obj, int display)
 
 	case scm_pair:
 		print_list(out, obj, display);
+		break;
+
+	case scm_symbol:
+		fprintf(out, "%s", sym2str(obj));
 		break;
 
 	case scm_char:
