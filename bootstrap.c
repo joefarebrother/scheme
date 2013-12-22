@@ -254,6 +254,27 @@ object *read_char(FILE *in)
     return make_char(c);
 }
 
+object *read_list(FILE *in)
+{
+	int c;
+	object *sofar = empty_list;
+
+	eat_ws(in);
+
+	c = getc(in);
+	switch(c){
+	case EOF:
+		fprintf(stderr, "Incompleted list.\n");
+		exit(1);
+	case ')':
+		return sofar;
+	default:
+		fprintf(stderr, "The empty list is the only one supported currently.\n");
+		exit(1);
+	}
+}
+
+
 object *read(FILE *in)
 {
 	int c; 
@@ -261,7 +282,9 @@ object *read(FILE *in)
 	eat_ws(in);
 
 	c = getc(in);
-	if (isdigit(c) || (c == '-' && isdigit(peek(in))))
+
+	if (c == EOF) return eof;
+	else if (isdigit(c) || (c == '-' && isdigit(peek(in))))
 	{
 		/* read an integer */
 		int sign = 1, num = 0;
@@ -299,7 +322,7 @@ object *read(FILE *in)
 	}
 	else if (c == '"')
 	{
-		/* read string */
+		/* read a string */
 #define BUF_MAX 1024
 		char buf[BUF_MAX];
 		int len = 0;
@@ -324,6 +347,9 @@ object *read(FILE *in)
 		}
 		buf[len] = '\0';
 		return make_str(buf);
+	}
+	else if (c == '('){
+		return read_list(in);
 	}
 	else {
 		fprintf(stderr, "Bad input. Unexpected %c.\n", c);
@@ -354,6 +380,12 @@ void print(FILE *out, object *obj, int display)
 		break;
 	case scm_bool:
 		fprintf(out, obj2bool(obj) ? "#t" : "#f");
+		break;
+	case scm_eof:
+		fprintf(out, "#<eof object>");
+		break;
+	case scm_empty_list:
+		fprintf(out, "()");
 		break;
 	case scm_char:
 		if (display) fputc(obj2char(obj), out);
