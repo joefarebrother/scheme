@@ -5,7 +5,7 @@
  * or continuations as they are not needed by the compiler. 
  * Includes a very simple reference-counting GC that will leak 
  * memory on circular structures, which is ok because only one 
- * (the global enviroment) is used. Based on SICP and 
+ * (the global enviroment) is used, which is permanent anyway. Based on
  * http://michaux.ca/articles/scheme-from-scratch-introduction.
  */
 
@@ -285,7 +285,7 @@ object *read_list(FILE *in){
 	eat_ws(in);
 
 	c = getc(in);
-	if (c == ')')
+	if (c == ')') 
 		return empty_list;
 	if (c == EOF){
 		fprintf(stderr, "Unexpected end of file: unclosed list.\n");
@@ -296,7 +296,7 @@ object *read_list(FILE *in){
 	car = read(in);
 	eat_ws(in);
 
-	if(peek(in) == '.'){
+	if(peek(in) == '.'){ /* improper list */
 		getc(in);
 		if(!is_delimiter(c = peek(in))){
 			fprintf(stderr, "Bad list: expecting delimiter after dot, got %c.\n", c);
@@ -391,6 +391,7 @@ object *read(FILE *in)
 		return make_str(buf);
 	}
 	else if (c == '('){
+		/* read a list */
 		return read_list(in);
 	}
 	else {
