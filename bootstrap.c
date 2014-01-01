@@ -68,7 +68,7 @@ int check_type(enum obj_type type, object *obj, int err_on_false)
 {
 	int result = (type == obj->type);
 	if (!result && err_on_false){
-		fprintf(stderr, "Type error\n");
+		fprintf(stderr, "Type error.\n");
 		exit(1);
 	}
 	return result;
@@ -206,6 +206,7 @@ void set_car(object *pair, object *new)
 	check_type(scm_pair, pair, 1);
 	decrement_refs(car(pair));
 	pair->data.pair.car = new;
+	new->refs++;
 }
 
 void set_cdr(object *pair, object *new)
@@ -213,6 +214,7 @@ void set_cdr(object *pair, object *new)
 	check_type(scm_pair, pair, 1);
 	decrement_refs(cdr(pair));
 	pair->data.pair.cdr = new;
+	new->refs++;
 }
 
 object *make_symbol(char *name)
@@ -551,15 +553,33 @@ int self_evaluating(object *code){
 #undef check
 }
 
+object *eval(object *code, object *env);
+
 object *eval_list(object *code, object *env)
 {
 	if (car(code) == get_symbol("QUOTE")){
-		if (!check_type(scm_pair, cdr(code), 0) || (cddr(code) != empty_list)){
+		if (!(check_type(scm_pair, cdr(code), 0) && (cddr(code) == empty_list))){
 			fprintf(stderr, "Evaluation error: bad QUOTE form: ");
 			print(stderr, code, 0);
 			fputc('\n', stderr);
 			exit(1);
 		}
+		return cadr(code);
+	}
+	else if (car(code) == get_symbol("DEFINE")){
+		if (!(check_type(scm_pair, cdr(code), 0) &&
+			 (check_type(scm_symbol, cadr(code), 0) && 
+				(cddr(code) == empty_list || 
+					(check_type(scm_pair, cddr(code), 0) 
+					&& cdddr(code) == empty_list)))))
+		{
+			fprintf(stderr, "Evaluation error: bad DEFINE form: ");
+			print(stderr, code, 0);
+			fputc('\n', stderr);
+		}
+
+		define_var(cadr(code), 
+			(cddr(code) == empty_list ? false : eval(caddr(code), env)), env);
 		return cadr(code);
 	}
 	else {
@@ -574,9 +594,10 @@ object *eval(object *code, object *env)
 {
 	if(self_evaluating(code))
 		return code;
-	else if (check_type(scm_pair, code, 0)){
+	else if(check_type(scm_pair, code, 0))
 		return eval_list(code, env);
-	}
+	else if(check_type(scm_symbol, code, 0))
+		return get_var(code, env);
 	else {
 		fprintf(stderr, "Evaluation error: can't evaluate ");
 		print(stderr, code, 0);
@@ -603,7 +624,7 @@ void print_list(FILE *out, object *list, int display)
 	if(list == empty_list)
 		fputc(')', out);
 	else {
-		fprintf(out, ". ");
+		fprintf(out, " . ");
 		print(out, list, display);
 		fputc(')', out);
 	}
@@ -686,7 +707,7 @@ void print(FILE *out, object *obj, int display)
 		break;
 
 	default:
-		fprintf(stderr, "Unknown data type in write.\n");
+		fprintf(stderr, "Unknown data type in write: %d.\n", obj->type);
 		exit(1);
 	}
 }
