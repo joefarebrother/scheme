@@ -43,7 +43,7 @@ typedef struct object {
 			struct object *cdr;
 		} pair;
 		char *str;
-		struct object (**prim)(struct object *);
+		struct object (**prim)(struct object *args);
 		struct {
 			struct object *env;
 			struct object *args;
@@ -61,6 +61,7 @@ object *std_input;
 object *std_output;
 object *std_error;
 object *symbol_table;
+object *global_enviroment;
 
 
 int check_type(enum obj_type type, object *obj, int err_on_false)
@@ -91,35 +92,33 @@ object *alloc_obj(void)
 	return obj;
 }
 
-void init_constants(void)
+void decrement_refs(object *obj)
 {
-	true = alloc_obj();
-	true->type = scm_bool;
-	true->data.i = 1;
+	if(--(obj->refs) || obj == true || obj == false || 
+		 obj == empty_list || obj == eof || obj == std_input ||
+		 obj == std_output || obj == std_error)
+		return;
 
-	false = alloc_obj();
-	false->type = scm_bool;
-	false->data.i = 0;
-
-	empty_list = alloc_obj();
-	empty_list->type = scm_empty_list;
-
-	std_input = alloc_obj();
-	std_input->type = scm_file;
-	std_input->data.file = stdin;
-
-	std_output = alloc_obj();
-	std_output->type = scm_file;
-	std_output->data.file = stdout;
-
-	std_output = alloc_obj();
-	std_output->type = scm_file;
-	std_output->data.file = stderr;
-
-	eof = alloc_obj();
-	eof->type = scm_eof;
-
-	symbol_table = empty_list;
+	switch(obj->type){
+	case scm_pair:
+		decrement_refs(obj->data.pair.car);
+		decrement_refs(obj->data.pair.cdr);
+		break;
+	case scm_str:
+	case scm_symbol:
+		free(obj->data.str);
+		break;
+	case scm_lambda:
+		decrement_refs(obj->data.lambda.env);
+		decrement_refs(obj->data.lambda.args);
+		decrement_refs(obj->data.lambda.code);
+		break;
+	case scm_file:
+		fclose(obj->data.file);
+		break;
+	/*no default branch necassary */
+	}
+	free(obj);
 }
 
 object *make_int(int value)
@@ -202,6 +201,19 @@ object *cdr(object *obj)
 	return obj->data.pair.cdr;
 }
 
+void set_car(object *pair, object *new)
+{
+	check_type(scm_pair, pair, 1);
+	decrement_refs(car(pair));
+	pair->data.pair.car = new;
+}
+
+void set_cdr(object *pair, object *new)
+{
+	check_type(scm_pair, pair, 1);
+	decrement_refs(cdr(pair));
+	pair->data.pair.cdr = new;
+}
 
 object *make_symbol(char *name)
 {
@@ -235,6 +247,38 @@ object *get_symbol(char *name)
 	return sym;
 }
 
+void init_constants(void)
+{
+	true = alloc_obj();
+	true->type = scm_bool;
+	true->data.i = 1;
+
+	false = alloc_obj();
+	false->type = scm_bool;
+	false->data.i = 0;
+
+	empty_list = alloc_obj();
+	empty_list->type = scm_empty_list;
+
+	std_input = alloc_obj();
+	std_input->type = scm_file;
+	std_input->data.file = stdin;
+
+	std_output = alloc_obj();
+	std_output->type = scm_file;
+	std_output->data.file = stdout;
+
+	std_output = alloc_obj();
+	std_output->type = scm_file;
+	std_output->data.file = stderr;
+
+	eof = alloc_obj();
+	eof->type = scm_eof;
+
+	symbol_table = empty_list;
+
+	global_enviroment = cons(empty_list, empty_list);
+}
 
 /*
  * Read
@@ -360,10 +404,9 @@ object *read_list(FILE *in){
 	return cons(car, cdr);
 }
 
-
+#define BUF_MAX 1024
 object *read(FILE *in)
 {
-#define BUF_MAX 1024
 	int c; 
 
 	eat_ws(in);
@@ -476,13 +519,39 @@ object *read(FILE *in)
 
 void print(FILE *out, object *obj, int display);
 
+void define_var(object *var, object *val, object *env)
+{
+	set_car(env, cons(cons(var, val), car(env)));
+}
+
+object *find_var_binding(object *var, object *env)
+{
+	object *frame;
+	for(; env != empty_list; env = cdr(env))
+		for(frame = car(env); frame != empty_list; frame = cdr(frame))
+			if(caar(frame) == var)
+				return car(frame);
+	fprintf(stderr, "Evaluation error: unbound variable %s.\n", sym2str(var));
+	exit(1);
+}
+
+void set_var(object *var, object *val, object *env)
+{
+	set_cdr(find_var_binding(var, env), val);
+}
+
+object *get_var(object *var, object *env)
+{
+	return cdr(find_var_binding(var, env));
+}
+
 int self_evaluating(object *code){
 #define check(x) check_type(scm_ ## x, code, 0)
  	return check(int) || check(str) || check(char) || check(eof) || check(bool);
 #undef check
 }
 
-object *eval_list(object *code)
+object *eval_list(object *code, object *env)
 {
 	if (car(code) == get_symbol("QUOTE")){
 		if (!check_type(scm_pair, cdr(code), 0) || (cddr(code) != empty_list)){
@@ -501,12 +570,12 @@ object *eval_list(object *code)
 	}
 }
 
-object *eval(object *code)
+object *eval(object *code, object *env)
 {
 	if(self_evaluating(code))
 		return code;
 	else if (check_type(scm_pair, code, 0)){
-		return eval_list(code);
+		return eval_list(code, env);
 	}
 	else {
 		fprintf(stderr, "Evaluation error: can't evaluate ");
@@ -635,7 +704,7 @@ int main(int argc, const char **argv)
 
 	while(1){
 		printf("> ");
-		print(stdout, eval(read(stdin)), argc - 1);
+		print(stdout, eval(read(stdin), global_enviroment), argc - 1);
 		printf("\n");
 	}
 }
