@@ -40,6 +40,7 @@ bootstrap.c currently recognises the following special forms:
 - quote
 - lambda
 - begin
+- cond, including =>
 
 
 To test, type at a terminal:

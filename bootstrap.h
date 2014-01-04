@@ -72,8 +72,9 @@ object *make_lambda(object *args, object *code, object *env);
 object *lambda_code(object *obj);
 object *lambda_args(object *obj);
 
-
 object *apply(object *fun, object *args);
+
+object *maybe_add_begin(object *code);
 
 void init_global_enviroment(void);
 
@@ -83,5 +84,7 @@ void eval_err(char *msg, object *code);
 void define_var(object *var, object *val, object *env);
 void set_var(object *var, object *val, object *env);
 object *get_var(object *var, object *env);
+
+object* cond2nested_if(object *cond);
 
 #endif /*include guard*/

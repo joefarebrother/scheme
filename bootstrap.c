@@ -753,6 +753,13 @@ tailcall:
 			goto tailcall;
 		}
 
+		else if (car(code) == get_symbol("COND")){
+			code = cond2nested_if(code);
+			goto tailcall;
+		}
+
+		/*more stuff can go here*/
+
 		/*it's a call*/
 		proc = eval(car(code), env);
 		args = eval_each(cdr(code), env);

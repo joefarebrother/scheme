@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "bootstrap.h"
+#include <stdarg.h>
 
 /*type predicates*/
 #define DEF_TYPE_PRED(type) object *is_ ## type ## _proc(object *args) \
@@ -232,4 +233,39 @@ void init_global_enviroment(void)
 	DEFPROC1(exit);
 	DEFPROC(eq?, eq);
 	DEFPROC1(apply);
+}
+
+object *build_list(int length, va_list args)
+{
+	object* car;
+	if (length == 0)  return empty_list;
+	car = va_arg(args, object *);
+	return cons(car, build_list(length-1, args));
+}
+object *list(int length, ...)
+{
+	va_list args;
+	object *result;
+	va_start(args, length);
+	result = build_list(length, args);
+	va_end(args);
+	return result;
+}
+
+/*syntaxes*/
+object *cond2nested_if(object *cond)
+{
+	object *smaller_cond, *gensym = make_symbol("temp"); /*make symbol returns a new one*/
+	if (cdr(cond) == empty_list) return false;
+	if (caadr(cond) == get_symbol("ELSE")) return maybe_add_begin(cdadr(cond));
+	smaller_cond = cons(get_symbol("COND"), cddr(cond));
+	if (cdadr(cond) == empty_list)
+		return list(2, list(3, get_symbol("LAMBDA"), list(1, gensym),
+			list(4, get_symbol("IF"), gensym, gensym, smaller_cond)), caadr(cond));
+
+	if (cadadr(cond) == get_symbol("=>"))
+		return list(2, list(3, get_symbol("LAMBDA"), list(1, gensym),
+			list(4, get_symbol("IF"), gensym, list(2, car(cddadr(cond)), gensym), smaller_cond)), caadr(cond));
+
+	return list(4, get_symbol("IF"), caadr(cond), maybe_add_begin(cdadr(cond)), smaller_cond);
 }
