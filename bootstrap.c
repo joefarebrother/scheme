@@ -4,8 +4,8 @@
  * integers, characters, symbols, and IO, but no vectors or macros 
  * or continuations as they are not needed by the compiler. 
  * Includes a very simple reference-counting GC that will leak 
- * memory on circular structures, which is ok because only one 
- * (the global enviroment) is used, which is permanent anyway. Based on
+ * some memory, but it only runs for a short time so it's OK.
+ * Based on
  * http://michaux.ca/articles/scheme-from-scratch-introduction.
  */
 
@@ -31,7 +31,7 @@ struct object {
 			struct object *cdr;
 		} pair;
 		char *str;
-		struct object (**prim)(struct object *args);
+		prim_proc prim;
 		struct {
 			struct object *env;
 			struct object *args;
@@ -41,12 +41,41 @@ struct object {
 	} data;
 };
 
+char *type_name(enum obj_type type)
+{
+	switch(type){
+	case scm_bool:
+		return "a boolean";
+	case scm_empty_list:
+		return "the empty list";
+	case scm_eof:
+		return "the end of file object";
+	case scm_char:
+		return "a character";
+	case scm_int: 
+		return "a number";
+	case scm_pair:
+		return "a pair";
+	case scm_symbol:
+		return "a symbol";
+	case scm_prim_fun:
+	case scm_lambda:
+		return "a function";
+	case scm_str:
+		return "a string";
+	case scm_file:
+		return "a port";
+	default:
+		return "unknown"; /* this shouldn't happen */
+	}
+}
 
 int check_type(enum obj_type type, object *obj, int err_on_false)
 {
 	int result = (type == obj->type);
 	if (!result && err_on_false){
-		fprintf(stderr, "Type error.\n");
+		fprintf(stderr, "Type error: expecting %s, got %s.\n", 
+			type_name(type), type_name(obj->type));
 		exit(1);
 	}
 	return result;
@@ -117,7 +146,7 @@ object *make_bool(int value)
 int obj2bool(object *obj)
 {
 	check_type(scm_bool, obj, 1);
-	return obj->data.i;
+	return obj == true ? 1 : 0;
 }
 
 object *make_char(char c)
@@ -221,6 +250,18 @@ object *get_symbol(char *name)
 	sym = make_symbol(name);
 	symbol_table = cons(sym, symbol_table);
 	return sym;
+}
+
+object *make_prim_fun(prim_proc fun)
+{
+	object *obj = alloc_obj();
+	obj->type = scm_prim_fun;
+	obj->data.prim = fun;
+}
+prim_proc obj2prim_proc(object *obj)
+{
+	check_type(scm_prim_fun, obj, 1);
+	return obj->data.prim;
 }
 
 void init_constants(void)
@@ -418,6 +459,9 @@ object *read(FILE *in)
 			return false;
 		case '\\':
 			return read_char(in);
+		case '<':
+			fprintf(stderr, "Unreadable object in input stream.\n");
+			exit(1);
 		default:
 			fprintf(stderr, "Bad input. Expecting t, f, or \\, got %c.\n", c);
 			exit(1);
@@ -567,10 +611,19 @@ object *eval_define(object *code, object *env)
 	eval_err("bad DEFINE form:", code);
 }
 
+object *eval_each(object *exprs, object *env)
+{
+	if(exprs == empty_list)
+		return empty_list;
+	else
+		return cons(eval(car(exprs), env), eval_each(cdr(exprs), env));
+}
+
 
 object *eval(object *code, object *env)
 {
-
+	object *proc;
+	object *args;
 tailcall:
 	if(self_evaluating(code))
 		return code;
@@ -589,13 +642,12 @@ tailcall:
 			return eval_define(code, env);
 
 		else if (car(code) == get_symbol("SET!")){
-			object *val;
 			if(!check_length_between(3, 3, code) || !check_type(scm_symbol, cadr(code), 0))
 				eval_err("bad SET! form:", code);
 
-			val = eval(caddr(code), env);
-			set_var(cadr(code), val, env);
-			return val;
+			args = eval(caddr(code), env);
+			set_var(cadr(code), args, env);
+			return args;
 		}
 
 		else if (car(code) == get_symbol("IF")){
@@ -608,7 +660,11 @@ tailcall:
 												 cadddr(code);
 			goto tailcall;
 		}
-		/*more here*/
+
+		/*it's a call*/
+		proc = eval(car(code), env);
+		args = eval_each(cdr(code), env);
+		return (obj2prim_proc(proc))(args);
 	}
 
 	else eval_err("can't evaluate", code);
@@ -663,6 +719,10 @@ void print(FILE *out, object *obj, int display)
 
 	case scm_symbol:
 		fprintf(out, "%s", sym2str(obj));
+		break;
+
+	case scm_prim_fun:
+		fprintf(out, "#<primitive procedure>");
 		break;
 
 	case scm_char:

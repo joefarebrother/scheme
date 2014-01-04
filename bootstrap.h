@@ -30,6 +30,8 @@ enum obj_type {
 	scm_file
 };
 
+typedef object *(*prim_proc)(object *args);
+
 object *read(FILE *in);
 object *eval(object *code, object *env);
 void print(FILE *out, object *obj, int display);
@@ -63,12 +65,16 @@ object *make_symbol(char *name);
 char *sym2str(object *obj);
 object *get_symbol(char *name);
 
+object *make_prim_fun(prim_proc fun);
+prim_proc obj2prim_proc(object *obj);
+
 
 
 void init_global_enviroment(void);
 
 
 void eval_err(char *msg, object *code);
+
 void define_var(object *var, object *val, object *env);
 void set_var(object *var, object *val, object *env);
 object *get_var(object *var, object *env);
