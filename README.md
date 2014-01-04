@@ -29,16 +29,18 @@ bootstrap-prims.c currently defines:
 - set-car!
 - set-cdr!
 - eq?
+- apply
+- exit
 
 bootstrap.c currently recognises the following special forms:
 
 - if
 - set!
-- define*
+- define
 - quote
-- lambda*
+- lambda
+- begin
 
-*no sequential evaluation yet
 
 To test, type at a terminal:
 

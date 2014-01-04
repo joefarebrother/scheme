@@ -646,6 +646,11 @@ int self_evaluating(object *code)
 #undef check
 }
 
+object *maybe_add_begin(object *code)
+{
+	if (cdr(code) == empty_list) return car(code);
+	return cons(get_symbol("BEGIN"), code);
+}
 
 object *eval_define(object *code, object *env)
 {
@@ -662,10 +667,10 @@ object *eval_define(object *code, object *env)
 	} 
 		
 	if(check_type(scm_pair, cadr(code), 0)){
-		if(!check_length_between(3, 3, code)) /*change that later*/
+		if(!check_length_between(3, -1, code)) 
 			eval_err("bad DEFINE form:", code);
 
-		define_var(caadr(code), make_lambda(cdadr(code), caddr(code), env), env);
+		define_var(caadr(code), make_lambda(cdadr(code), maybe_add_begin(cddr(code)), env), env);
 		return caadr(code);
 	}
 
@@ -731,10 +736,21 @@ tailcall:
 		}
 
 		else if (car(code) == get_symbol("LAMBDA")){
-			if(!check_length_between(3, 3, code)) /*change that later*/
+			if(!check_length_between(3, -1, code)) 
 				eval_err("bad LAMBDA form:", code);
 
-			return make_lambda(cadr(code), caddr(code), env);
+			return make_lambda(cadr(code), maybe_add_begin(cddr(code)), env);
+		}
+
+		else if (car(code) == get_symbol("BEGIN")){
+			if(!check_length_between(2, -1, code)) 
+				eval_err("bad BEGIN form:", code);
+
+			for(code = cdr(code); cdr(code) != empty_list; code = cdr(code))
+				eval(car(code), env);
+
+			code = car(code);
+			goto tailcall;
 		}
 
 		/*it's a call*/
