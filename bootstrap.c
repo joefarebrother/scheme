@@ -518,8 +518,15 @@ object *read(FILE *in)
 /*
  * Eval - based on SICP
  */
-
 void print(FILE *out, object *obj, int display);
+
+void eval_err(char *msg, object *code)
+{
+	fprintf(stderr, "Evaluation error: %s ", msg);
+	print(stderr, code, 0);
+	fputc('\n', stderr);
+	exit(1);
+}
 
 void define_var(object *var, object *val, object *env)
 {
@@ -533,8 +540,7 @@ object *find_var_binding(object *var, object *env)
 		for(frame = car(env); frame != empty_list; frame = cdr(frame))
 			if(caar(frame) == var)
 				return car(frame);
-	fprintf(stderr, "Evaluation error: unbound variable %s.\n", sym2str(var));
-	exit(1);
+	eval_err("unbound variable", var);
 }
 
 void set_var(object *var, object *val, object *env)
@@ -547,55 +553,59 @@ object *get_var(object *var, object *env)
 	return cdr(find_var_binding(var, env));
 }
 
-int self_evaluating(object *code){
+int self_evaluating(object *code)
+{
 #define check(x) check_type(scm_ ## x, code, 0)
  	return check(int) || check(str) || check(char) || check(eof) || check(bool);
 #undef check
 }
 
+
 object *eval(object *code, object *env);
 
-object *eval_define(object *code, object *env){
+object *eval_define(object *code, object *env)
+{
 	if (!check_type(scm_pair, cdr(code), 0))
-			goto err;
-		if(check_type(scm_symbol, cadr(code), 0)) {
-			if(!(cddr(code) == empty_list || 
-					(check_type(scm_pair, cddr(code), 0) 
-					&& cdddr(code) == empty_list)))
-				goto err;
+			eval_err("bad DEFINE form:", code);
 
-			define_var(cadr(code), 
-				(cddr(code) == empty_list ? false : eval(caddr(code), env)), env);
-			return cadr(code);
-		} 
+	if(check_type(scm_symbol, cadr(code), 0)) {
+		if(!(cddr(code) == empty_list || 
+				(check_type(scm_pair, cddr(code), 0) 
+				&& cdddr(code) == empty_list)))
+			eval_err("bad DEFINE form:", code);
+
+		define_var(cadr(code), 
+			(cddr(code) == empty_list ? false : eval(caddr(code), env)), env);
+		return cadr(code);
+	} 
 		
-		/*other form of define to be implemented later */
-err:
-	fprintf(stderr, "Evaluation error: bad DEFINE form: ");
-	print(stderr, code, 0);
-	fputc('\n', stderr);
-	exit(1);
+	/*other form of define to be implemented later */	
 }
 
 object *eval_list(object *code, object *env)
 {
+	object *arg;
 	if (car(code) == get_symbol("QUOTE")){
-		if (!(check_type(scm_pair, cdr(code), 0) && (cddr(code) == empty_list))){
-			fprintf(stderr, "Evaluation error: bad QUOTE form: ");
-			print(stderr, code, 0);
-			fputc('\n', stderr);
-			exit(1);
-		}
+		if (!(check_type(scm_pair, cdr(code), 0) && (cddr(code) == empty_list)))
+			eval_err("bad QUOTE form:", code);
+
 		return cadr(code);
 	}
+
 	else if (car(code) == get_symbol("DEFINE"))
 		return eval_define(code, env);
-	else {
-		fprintf(stderr, "Evaluation error: can't evaluate ");
-		print(stderr, code, 0);
-		fputc('\n', stderr);
-		exit(1);
+
+	else if (car(code) == get_symbol("SET!")){
+		if(!(check_type(scm_pair, cdr(code), 0) && check_type(scm_pair, cddr(code), 0)
+			&& check_type(scm_symbol, cadr(code), 0) && cdddr(code) == empty_list))
+			eval_err("bad SET! form:", code);
+
+		arg = eval(caddr(code), env);
+		set_var(cadr(code), arg, env);
+		return arg;
 	}
+
+	else eval_err("can't evaluate", code);
 }
 
 object *eval(object *code, object *env)
@@ -606,12 +616,8 @@ object *eval(object *code, object *env)
 		return eval_list(code, env);
 	else if(check_type(scm_symbol, code, 0))
 		return get_var(code, env);
-	else {
-		fprintf(stderr, "Evaluation error: can't evaluate ");
-		print(stderr, code, 0);
-		fputc('\n', stderr);
-		exit(1);
-	}
+
+	else eval_err("can't evaluate", code);
 }
 
 /*
