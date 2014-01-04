@@ -601,39 +601,49 @@ object *eval_define(object *code, object *env)
 	eval_err("bad DEFINE form:", code);
 }
 
-object *eval_list(object *code, object *env)
-{
-	object *arg;
-	if (car(code) == get_symbol("QUOTE")){
-		if (!check_length_between(2, 2, code))
-			eval_err("bad QUOTE form:", code);
-
-		return cadr(code);
-	}
-
-	else if (car(code) == get_symbol("DEFINE"))
-		return eval_define(code, env);
-
-	else if (car(code) == get_symbol("SET!")){
-		if(!check_length_between(3, 3, code) || !check_type(scm_symbol, cadr(code), 0))
-			eval_err("bad SET! form:", code);
-
-		arg = eval(caddr(code), env);
-		set_var(cadr(code), arg, env);
-		return arg;
-	}
-
-	else eval_err("can't evaluate", code);
-}
 
 object *eval(object *code, object *env)
 {
+
+tailcall:
 	if(self_evaluating(code))
 		return code;
-	else if(check_type(scm_pair, code, 0))
-		return eval_list(code, env);
 	else if(check_type(scm_symbol, code, 0))
 		return get_var(code, env);
+
+	else if(check_type(scm_pair, code, 0)){
+		if (car(code) == get_symbol("QUOTE")){
+			if (!check_length_between(2, 2, code))
+				eval_err("bad QUOTE form:", code);
+
+			return cadr(code);
+		}
+
+		else if (car(code) == get_symbol("DEFINE"))
+			return eval_define(code, env);
+
+		else if (car(code) == get_symbol("SET!")){
+			object *val;
+			if(!check_length_between(3, 3, code) || !check_type(scm_symbol, cadr(code), 0))
+				eval_err("bad SET! form:", code);
+
+			val = eval(caddr(code), env);
+			set_var(cadr(code), val, env);
+			return val;
+		}
+
+		else if (car(code) == get_symbol("IF")){
+			if(!check_length_between(3, 4, code))
+				eval_err("bad IF form:", code);
+
+			code = 
+				is_true(eval(cadr(code), env)) ? caddr(code): /*cond in C! */
+				cdddr(code) == empty_list      ? false:
+												 cadddr(code);
+			goto tailcall;
+		}
+	
+	}
 
 	else eval_err("can't evaluate", code);
 }
