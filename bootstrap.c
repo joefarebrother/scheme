@@ -9,30 +9,18 @@
  * http://michaux.ca/articles/scheme-from-scratch-introduction.
  */
 
-#include <stdio.h>
+
 #include <stdlib.h>
 #include <string.h>
-#include "cxrs.h"
+#include <stdio.h>
+#include "bootstrap.h"
 
 /*
  * DATA
  */
 
-typedef enum obj_type {
-	scm_bool,
-	scm_empty_list,
-	scm_eof,
-	scm_char,
-	scm_int,
-	scm_pair,
-	scm_symbol,
-	scm_prim_fun,
-	scm_lambda,
-	scm_str,
-	scm_file
-} obj_type;
 
-typedef struct object {
+struct object {
 	enum obj_type type;
 	int refs;
 	union {
@@ -51,17 +39,7 @@ typedef struct object {
 		} lambda;
 		FILE *file;
 	} data;
-} object;
-
-object *true;
-object *false;
-object *eof;
-object *empty_list;
-object *std_input;
-object *std_output;
-object *std_error;
-object *symbol_table;
-object *global_enviroment;
+};
 
 
 int check_type(enum obj_type type, object *obj, int err_on_false)
@@ -74,10 +52,6 @@ int check_type(enum obj_type type, object *obj, int err_on_false)
 	return result;
 }
 
-int is_true(object *obj)
-{
-	return obj != false;
-}
 
 object *alloc_obj(void)
 {
@@ -253,11 +227,9 @@ void init_constants(void)
 {
 	true = alloc_obj();
 	true->type = scm_bool;
-	true->data.i = 1;
 
 	false = alloc_obj();
 	false->type = scm_bool;
-	false->data.i = 0;
 
 	empty_list = alloc_obj();
 	empty_list->type = scm_empty_list;
@@ -367,8 +339,6 @@ object *read_char(FILE *in)
     expect_delim(in);
     return make_char(c);
 }
-
-object *read(FILE *in);
 
 object *read_list(FILE *in){
 	object *car, *cdr;
@@ -519,8 +489,6 @@ object *read(FILE *in)
  * Eval - based on SICP
  */
 
-void print(FILE *out, object *obj, int display); /*is used in error signaling code */
-
 void eval_err(char *msg, object *code)
 {
 	fprintf(stderr, "Evaluation error: %s ", msg);
@@ -580,8 +548,6 @@ int self_evaluating(object *code)
 }
 
 
-object *eval(object *code, object *env);
-
 object *eval_define(object *code, object *env)
 {
 	if (!check_length_between(2, -1, code))
@@ -637,12 +603,12 @@ tailcall:
 				eval_err("bad IF form:", code);
 
 			code = 
-				is_true(eval(cadr(code), env)) ? caddr(code): /*cond in C! */
-				cdddr(code) == empty_list      ? false:
+				is_true(eval(cadr(code), env)) ? caddr(code) : /*cond in C! */
+				cdddr(code) == empty_list      ? false       :
 												 cadddr(code);
 			goto tailcall;
 		}
-	
+		/*more here*/
 	}
 
 	else eval_err("can't evaluate", code);
@@ -764,6 +730,7 @@ int main(int argc, const char **argv)
 		  "Press ctrl-c to exit. \n");
 
 	init_constants();
+	init_global_enviroment();
 
 	while(1){
 		printf("> ");
