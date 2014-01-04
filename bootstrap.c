@@ -787,7 +787,7 @@ void print(FILE *out, object *obj, int display)
 int main(int argc, const char **argv)
 {
 	printf("Welcome to bootstrap scheme. \n%s",
-		  "Press ctrl-c to exit. \n");
+		  "Press ctrl-c or type (exit) to exit. \n");
 
 	init_constants();
 	init_global_enviroment();
