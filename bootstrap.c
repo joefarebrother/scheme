@@ -518,7 +518,8 @@ object *read(FILE *in)
 /*
  * Eval - based on SICP
  */
-void print(FILE *out, object *obj, int display);
+
+void print(FILE *out, object *obj, int display); /*is used in error signaling code */
 
 void eval_err(char *msg, object *code)
 {
@@ -526,6 +527,24 @@ void eval_err(char *msg, object *code)
 	print(stderr, code, 0);
 	fputc('\n', stderr);
 	exit(1);
+}
+
+/* 
+ * returns 1 if code's length is between min and max inclusive, 0 otherwise 
+ * min or max of -1 indicate no minimum/maximum 
+ */
+int check_length_between(int min, int max, object *code){
+	while(1){
+		if (min < 0 && max < 0) return 1;
+		if (code == empty_list && min <= 0) return 1;
+
+		if(max == 0) return 0;
+		if(!check_type(scm_pair, code, 0)) return 0;
+
+		code = cdr(code);
+		--min;
+		--max;
+	}
 }
 
 void define_var(object *var, object *val, object *env)
@@ -565,13 +584,11 @@ object *eval(object *code, object *env);
 
 object *eval_define(object *code, object *env)
 {
-	if (!check_type(scm_pair, cdr(code), 0))
+	if (!check_length_between(2, -1, code))
 			eval_err("bad DEFINE form:", code);
 
 	if(check_type(scm_symbol, cadr(code), 0)) {
-		if(!(cddr(code) == empty_list || 
-				(check_type(scm_pair, cddr(code), 0) 
-				&& cdddr(code) == empty_list)))
+		if(!check_length_between(2, 3, code))
 			eval_err("bad DEFINE form:", code);
 
 		define_var(cadr(code), 
@@ -579,14 +596,16 @@ object *eval_define(object *code, object *env)
 		return cadr(code);
 	} 
 		
-	/*other form of define to be implemented later */	
+	/*other form of define to be implemented later */
+
+	eval_err("bad DEFINE form:", code);
 }
 
 object *eval_list(object *code, object *env)
 {
 	object *arg;
 	if (car(code) == get_symbol("QUOTE")){
-		if (!(check_type(scm_pair, cdr(code), 0) && (cddr(code) == empty_list)))
+		if (!check_length_between(2, 2, code))
 			eval_err("bad QUOTE form:", code);
 
 		return cadr(code);
@@ -596,8 +615,7 @@ object *eval_list(object *code, object *env)
 		return eval_define(code, env);
 
 	else if (car(code) == get_symbol("SET!")){
-		if(!(check_type(scm_pair, cdr(code), 0) && check_type(scm_pair, cddr(code), 0)
-			&& check_type(scm_symbol, cadr(code), 0) && cdddr(code) == empty_list))
+		if(!check_length_between(3, 3, code) || !check_type(scm_symbol, cadr(code), 0))
 			eval_err("bad SET! form:", code);
 
 		arg = eval(caddr(code), env);
