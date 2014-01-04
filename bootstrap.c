@@ -41,7 +41,9 @@ struct object {
 	} data;
 };
 
-char *type_name(enum obj_type type)
+static object *symbol_table;
+
+static char *type_name(enum obj_type type)
 {
 	switch(type){
 	case scm_bool:
@@ -82,7 +84,7 @@ int check_type(enum obj_type type, object *obj, int err_on_false)
 }
 
 
-object *alloc_obj(void)
+static object *alloc_obj(void)
 {
 	object *obj;
 	obj = malloc(sizeof(object));
@@ -95,7 +97,7 @@ object *alloc_obj(void)
 	return obj;
 }
 
-void decrement_refs(object *obj)
+static void decrement_refs(object *obj)
 {
 	if(--(obj->refs) || obj == true || obj == false || 
 		 obj == empty_list || obj == eof || obj == std_input ||
@@ -295,7 +297,7 @@ object *lambda_env(object *obj)
 	return obj->data.lambda.env;
 }
 
-void init_constants(void)
+static void init_constants(void)
 {
 	true = alloc_obj();
 	true->type = scm_bool;
@@ -330,7 +332,7 @@ void init_constants(void)
  * Read
  */
 
-int is_delimiter(int c) /*int not char because it might be EOF */
+static int is_delimiter(int c) /*int not char because it might be EOF */
 {
 	return isspace(c) || c == EOF ||
 		   c == '('   || c == ')' ||
@@ -338,14 +340,14 @@ int is_delimiter(int c) /*int not char because it might be EOF */
 		   c == '\'';
 }
 
-char peek(FILE *in){
+static char peek(FILE *in){
 	char c = getc(in);
 	ungetc(c, in);
 	return c;
 }
 
 
-void eat_ws(FILE *in)
+static void eat_ws(FILE *in)
 {
 	int c;
 	while((c = getc(in)) != EOF){
@@ -359,7 +361,7 @@ void eat_ws(FILE *in)
 	}
 }
 
-void eat_expected_str(FILE *in, char *str)
+static void eat_expected_str(FILE *in, char *str)
 {
 	char c;
 
@@ -372,7 +374,7 @@ void eat_expected_str(FILE *in, char *str)
 	}
 }
 
-void expect_delim(FILE *in)
+static void expect_delim(FILE *in)
 {
 	if(!is_delimiter(peek(in))){
 		fprintf(stderr, "Unexpected character: expecting a delimiter, got %c.\n", peek(in));
@@ -380,7 +382,7 @@ void expect_delim(FILE *in)
 	}
 }
 
-object *read_char(FILE *in) 
+static object *read_char(FILE *in) 
 {
     int c;
 
@@ -412,7 +414,7 @@ object *read_char(FILE *in)
     return make_char(c);
 }
 
-object *read_list(FILE *in){
+static object *read_list(FILE *in){
 	object *car, *cdr;
 	int c;
 	eat_ws(in);
@@ -576,7 +578,7 @@ void eval_err(char *msg, object *code)
  * returns 1 if code's length is between min and max inclusive, 0 otherwise 
  * min or max of -1 indicate no minimum/maximum 
  */
-int check_length_between(int min, int max, object *code){
+static int check_length_between(int min, int max, object *code){
 	while(1){
 		if (min < 0 && max < 0) return 1;
 		if (code == empty_list && min <= 0) return 1;
@@ -595,7 +597,7 @@ void define_var(object *var, object *val, object *env)
 	set_car(env, cons(cons(var, val), car(env)));
 }
 
-object *find_var_binding(object *var, object *env)
+static object *find_var_binding(object *var, object *env)
 {
 	object *frame;
 	for(; env != empty_list; env = cdr(env))
@@ -615,7 +617,7 @@ object *get_var(object *var, object *env)
 	return cdr(find_var_binding(var, env));
 }
 
-object *make_frame(object *vars, object *vals)
+static object *make_frame(object *vars, object *vals)
 {
 	object *sofar = empty_list;
 	while(vals != empty_list){
@@ -639,7 +641,7 @@ object *extend_enviroment(object *vars, object *vals, object *env)
 	return cons(make_frame(vars, vals), env);
 }
 
-int self_evaluating(object *code)
+static int self_evaluating(object *code)
 {
 #define check(x) check_type(scm_ ## x, code, 0)
  	return check(int) || check(str) || check(char) || check(eof) || check(bool);
@@ -652,7 +654,7 @@ object *maybe_add_begin(object *code)
 	return cons(get_symbol("BEGIN"), code);
 }
 
-object *eval_define(object *code, object *env)
+static object *eval_define(object *code, object *env)
 {
 	if (!check_length_between(2, -1, code))
 			eval_err("bad DEFINE form:", code);
@@ -677,7 +679,7 @@ object *eval_define(object *code, object *env)
 	eval_err("bad DEFINE form:", code);
 }
 
-object *eval_each(object *exprs, object *env)
+static object *eval_each(object *exprs, object *env)
 {
 	if(exprs == empty_list)
 		return empty_list;
@@ -729,7 +731,7 @@ tailcall:
 				eval_err("bad IF form:", code);
 
 			code = 
-				is_true(eval(cadr(code), env)) ? caddr(code) : /*cond in C! */
+				is_true(eval(cadr(code), env)) ? caddr(code) : /* cond in C! */
 				cdddr(code) == empty_list      ? false       :
 												 cadddr(code);
 			goto tailcall;
@@ -753,8 +755,15 @@ tailcall:
 			goto tailcall;
 		}
 
+		/*syntaxes*/
+
 		else if (car(code) == get_symbol("COND")){
 			code = cond2nested_if(code);
+			goto tailcall;
+		}
+
+		else if (car(code) == get_symbol("LET")){
+			code = let2lambda(code);
 			goto tailcall;
 		}
 
@@ -766,6 +775,9 @@ tailcall:
 		/*we can't use apply because it must be a tail call if lambda*/
 		if(check_type(scm_prim_fun, proc, 0))
 			return (obj2prim_proc(proc))(args);
+
+		if(!check_type(scm_lambda, proc, 0))
+			eval_err("not a function:", proc);
 
 		env = extend_enviroment(lambda_args(proc), args, lambda_env(proc));
 		code = lambda_code(proc);
@@ -780,7 +792,7 @@ tailcall:
  */
 
 
-void print_list(FILE *out, object *list, int display)
+static void print_list(FILE *out, object *list, int display)
 {
 	fputc('(', out);
 		print(out, car(list), display);

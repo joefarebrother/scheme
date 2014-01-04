@@ -41,6 +41,7 @@ bootstrap.c currently recognises the following special forms:
 - lambda
 - begin
 - cond, including =>
+- let
 
 
 To test, type at a terminal:

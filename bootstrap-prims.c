@@ -8,7 +8,7 @@
 #include <stdarg.h>
 
 /*type predicates*/
-#define DEF_TYPE_PRED(type) object *is_ ## type ## _proc(object *args) \
+#define DEF_TYPE_PRED(type) static object *is_ ## type ## _proc(object *args) \
  { \
   	return make_bool(check_type(scm_ ## type, car(args), 0)); \
  }
@@ -24,39 +24,39 @@ DEF_TYPE_PRED(lambda);
 */
 DEF_TYPE_PRED(str);
 
-object *is_proc_proc(object *args) /*a proc that checks if it's arg is a proc, hence proc twice*/
+static object *is_proc_proc(object *args) /*a proc that checks if it's arg is a proc, hence proc twice*/
 {
 	return make_bool(check_type(scm_prim_fun, car(args), 0) ||
 		check_type(scm_lambda, car(args), 0));
 }
 
 /*conversions*/
-object *integer_2char_proc(object *args)
+static object *integer_2char_proc(object *args)
 {
 	return make_char(obj2int(car(args)));
 }
-object *char_2integer_proc(object *args)
+static object *char_2integer_proc(object *args)
 {
 	return make_int(obj2char(car(args)));
 }
 
-object *string_2symbol_proc(object *args)
+static object *string_2symbol_proc(object *args)
 {
 	return get_symbol(obj2str(car(args)));
 }
-object *symbol_2string_proc(object *args)
+static object *symbol_2string_proc(object *args)
 {
 	return make_str(sym2str(car(args)));
 }
 
 #define INT2STR_BUFLEN 12 /* a 32 bit integer is never longer than 12 digits in decimal */
-object *number_2string_proc(object *args)
+static object *number_2string_proc(object *args)
 {
 	char buf[INT2STR_BUFLEN];
 	snprintf(buf, INT2STR_BUFLEN, "%d", obj2int(car(args)));
 	return make_str(buf);
 }
-object *string_2number_proc(object *args)
+static object *string_2number_proc(object *args)
 {
 	char *str = obj2str(car(args));
 	char *end;
@@ -66,29 +66,29 @@ object *string_2number_proc(object *args)
 }
 
 /*lists*/
-object *car_proc(object *args){return caar(args);}
-object *cdr_proc(object *args){return cdar(args);}
+static object *car_proc(object *args){return caar(args);}
+static object *cdr_proc(object *args){return cdar(args);}
 
-object *cons_proc(object *args)
+static object *cons_proc(object *args)
 {
 	set_cdr(args, cadr(args)); /*args is allocated fresh each time!*/
 	return args;
 }
 
-object *set_car_proc(object *args)
+static object *set_car_proc(object *args)
 {
 	set_car(car(args), cadr(args));
 	return(get_symbol("OK"));
 }
 
-object *set_cdr_proc(object *args)
+static object *set_cdr_proc(object *args)
 {
 	set_cdr(car(args), cadr(args));
 	return(get_symbol("OK"));
 }
 
 /*arithmetic*/
-object *add_proc(object *args)
+static object *add_proc(object *args)
 {
 	int sum = 0;
 	for(; args != empty_list; args = cdr(args))
@@ -97,7 +97,7 @@ object *add_proc(object *args)
 	return make_int(sum);
 }
 
-object *mul_proc(object *args)
+static object *mul_proc(object *args)
 {
 	int prod;
 	for(prod = 1; args != empty_list; args = cdr(args))
@@ -106,7 +106,7 @@ object *mul_proc(object *args)
 	return make_int(prod);
 }
 
-object *sub_proc(object *args)
+static object *sub_proc(object *args)
 {
 	int sofar;
 	if(cdr(args) == empty_list)
@@ -118,16 +118,16 @@ object *sub_proc(object *args)
 	return make_int(sofar);
 }
 
-object *quotient_proc(object *args)
+static object *quotient_proc(object *args)
 {
 	return make_int(obj2int(car(args)) / obj2int(cadr(args)));
 }
-object *remainder_proc(object *args)
+static object *remainder_proc(object *args)
 {
 	return make_int(obj2int(car(args)) % obj2int(cadr(args)));
 }
 
-object *equals_proc(object *args)
+static object *equals_proc(object *args)
 {
 	int first = obj2int(car(args));
 	for(args = cdr(args); args != empty_list; args = cdr(args))
@@ -137,7 +137,7 @@ object *equals_proc(object *args)
 	return true;
 }
 
-object *greater_than_proc(object *args)
+static object *greater_than_proc(object *args)
 {
 	int big = obj2int(car(args));
 	for(args = cdr(args); args != empty_list; args = cdr(args)){
@@ -148,7 +148,7 @@ object *greater_than_proc(object *args)
 	return true;
 }
 
-object *less_than_proc(object *args)
+static object *less_than_proc(object *args)
 {
 	int small = obj2int(car(args));
 	for(args = cdr(args); args != empty_list; args = cdr(args)){
@@ -160,17 +160,17 @@ object *less_than_proc(object *args)
 }
 
 /*misc*/
-object *exit_proc(object *args)
+static object *exit_proc(object *args)
 {
 	exit(args == empty_list ? 0 : obj2int(car(args)));
 }
 
-object *eq_proc(object *args)
+static object *eq_proc(object *args)
 {
 	return make_bool(car(args) == cadr(args));
 }
 
-object *apply_proc(object *args)
+static object *apply_proc(object *args)
 {
 	return apply(car(args), cadr(args));
 }
@@ -235,14 +235,20 @@ void init_global_enviroment(void)
 	DEFPROC1(apply);
 }
 
-object *build_list(int length, va_list args)
+/*syntaxes*/
+
+static object *build_list(int length, va_list args)
 {
-	object* car;
+	object *car;
 	if (length == 0)  return empty_list;
 	car = va_arg(args, object *);
+	if (car == NULL) /*NULL acts as a dot. Length doesn't matter if there's a NULL.*/
+	return va_arg(args, object *);
+
 	return cons(car, build_list(length-1, args));
 }
-object *list(int length, ...)
+
+static object *list(int length, ...)
 {
 	va_list args;
 	object *result;
@@ -252,7 +258,6 @@ object *list(int length, ...)
 	return result;
 }
 
-/*syntaxes*/
 object *cond2nested_if(object *cond)
 {
 	object *smaller_cond, *gensym = make_symbol("temp"); /*make symbol returns a new one*/
@@ -268,4 +273,20 @@ object *cond2nested_if(object *cond)
 			list(4, get_symbol("IF"), gensym, list(2, car(cddadr(cond)), gensym), smaller_cond)), caadr(cond));
 
 	return list(4, get_symbol("IF"), caadr(cond), maybe_add_begin(cdadr(cond)), smaller_cond);
+}
+
+#define DEF_BINDING_SELECTOR(name, cxr)          \
+static object *name(object *bindings)             \
+{                                                  \
+	if(bindings == empty_list) return empty_list;   \
+	return(cons(cxr(bindings), name(cdr(bindings))));\
+}
+
+DEF_BINDING_SELECTOR(let_vars, caar);
+DEF_BINDING_SELECTOR(let_vals, cadar);
+
+object *let2lambda(object *let)
+{
+	return list(-1, list(-1, get_symbol("LAMBDA"), let_vars(cadr(let)), NULL, cddr(let)), 
+		NULL, let_vals(cadr(let)));
 }

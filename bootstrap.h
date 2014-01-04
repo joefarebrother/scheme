@@ -13,7 +13,6 @@ object *empty_list;
 object *std_input;
 object *std_output;
 object *std_error;
-object *symbol_table;
 object *global_enviroment;
 
 enum obj_type {
@@ -85,6 +84,7 @@ void define_var(object *var, object *val, object *env);
 void set_var(object *var, object *val, object *env);
 object *get_var(object *var, object *env);
 
-object* cond2nested_if(object *cond);
+object *cond2nested_if(object *cond);
+object *let2lambda(object *let);
 
 #endif /*include guard*/
