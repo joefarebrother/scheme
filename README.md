@@ -30,6 +30,12 @@ set-car!
 set-cdr!
 eq?
 
+bootstrap.c currently recognises the following special forms:
+if
+set!
+define (simple form only)
+quote
+
 To test, type at a terminal:
 $ make
 $ ./bootstrap

@@ -264,6 +264,37 @@ prim_proc obj2prim_proc(object *obj)
 	return obj->data.prim;
 }
 
+object *make_lambda(object *args, object *code, object *env)
+{
+	object *obj = alloc_obj();
+	obj->type = scm_lambda;
+	obj->data.lambda.args = args;
+	obj->data.lambda.code = code;
+	obj->data.lambda.env = env;
+	args->refs++;
+	code->refs++;
+	env->refs++;
+	return obj;
+}
+
+object *lambda_code(object *obj)
+{
+	check_type(scm_lambda, obj, 1);
+	return obj->data.lambda.code;
+}
+
+object *lambda_args(object *obj)
+{
+	check_type(scm_lambda, obj, 1);
+	return obj->data.lambda.args;
+}
+
+object *lambda_env(object *obj)
+{
+	check_type(scm_lambda, obj, 1);
+	return obj->data.lambda.env;
+}
+
 void init_constants(void)
 {
 	true = alloc_obj();
@@ -584,6 +615,30 @@ object *get_var(object *var, object *env)
 	return cdr(find_var_binding(var, env));
 }
 
+object *make_frame(object *vars, object *vals)
+{
+	object *sofar = empty_list;
+	while(vals != empty_list){
+		if (vars == empty_list)
+			eval_err("Too many arguments to a function, excessive arguments are:", vals);
+
+		if(check_type(scm_symbol, vars, 0))
+			return cons(cons(vars, vals), sofar);
+		sofar = cons(cons(car(vars), car(vals)), sofar);
+		vars = cdr(vars);
+		vals = cdr(vals);
+	}
+	if(vars != empty_list)
+		eval_err("Not enough arguments to a function, these variables had no value:", vars);
+
+	return sofar;
+}
+
+object *extend_enviroment(object *vars, object *vals, object *env)
+{
+	return cons(make_frame(vars, vals), env);
+}
+
 int self_evaluating(object *code)
 {
 #define check(x) check_type(scm_ ## x, code, 0)
@@ -617,6 +672,14 @@ object *eval_each(object *exprs, object *env)
 		return empty_list;
 	else
 		return cons(eval(car(exprs), env), eval_each(cdr(exprs), env));
+}
+
+object *apply(object *proc, object *args)
+{
+	if(check_type(scm_prim_fun, proc, 0))
+		return (obj2prim_proc(proc))(args);
+	return eval(lambda_code(proc), 
+		extend_enviroment(lambda_args(proc), args, lambda_env(proc)));
 }
 
 
@@ -661,10 +724,23 @@ tailcall:
 			goto tailcall;
 		}
 
+		else if (car(code) == get_symbol("LAMBDA")){
+			if(!check_length_between(3, 3, code))
+				eval_err("bad LAMBDA form:", code);
+
+			return make_lambda(cadr(code), caddr(code), env);
+		}
+
 		/*it's a call*/
 		proc = eval(car(code), env);
 		args = eval_each(cdr(code), env);
-		return (obj2prim_proc(proc))(args);
+		/*we can't use apply because it must be a tail call if lambda*/
+		if(check_type(scm_prim_fun, proc, 0))
+			return (obj2prim_proc(proc))(args);
+
+		env = extend_enviroment(lambda_args(proc), args, lambda_env(proc));
+		code = lambda_code(proc);
+		goto tailcall;
 	}
 
 	else eval_err("can't evaluate", code);
@@ -723,6 +799,10 @@ void print(FILE *out, object *obj, int display)
 
 	case scm_prim_fun:
 		fprintf(out, "#<primitive procedure>");
+		break;
+
+	case scm_lambda:
+		fprintf(out, "#<procedure>");
 		break;
 
 	case scm_char:

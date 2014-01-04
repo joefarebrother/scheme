@@ -17,8 +17,17 @@ DEF_TYPE_PRED(char);
 DEF_TYPE_PRED(int);
 DEF_TYPE_PRED(pair);
 DEF_TYPE_PRED(symbol);
+/*
 DEF_TYPE_PRED(prim_fun);
+DEF_TYPE_PRED(lambda);
+*/
 DEF_TYPE_PRED(str);
+
+object *is_proc_proc(object *args) /*a proc that checks if it's arg is a proc, hence proc twice*/
+{
+	return make_bool(check_type(scm_prim_fun, car(args), 0) ||
+		check_type(scm_lambda, car(args), 0));
+}
 
 /*conversions*/
 object *integer_2char_proc(object *args)
@@ -205,7 +214,7 @@ void init_global_enviroment(void)
 	DEFPROC(integer?, is_int);
 	DEFPROC(pair?, is_pair);
 	DEFPROC(symbol?, is_symbol);
-	DEFPROC(procedure?, is_prim_fun);
+	DEFPROC(procedure?, is_proc);
 	DEFPROC(string?, is_str);
 
 	DEFPROC1(integer_2char);

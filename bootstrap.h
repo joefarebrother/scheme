@@ -68,7 +68,12 @@ object *get_symbol(char *name);
 object *make_prim_fun(prim_proc fun);
 prim_proc obj2prim_proc(object *obj);
 
+object *make_lambda(object *args, object *code, object *env);
+object *lambda_code(object *obj);
+object *lambda_args(object *obj);
 
+
+object *apply(object *fun, object *args);
 
 void init_global_enviroment(void);
 
