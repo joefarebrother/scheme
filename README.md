@@ -3,7 +3,7 @@ scheme
 
 A scheme compiler
 
-Status:
+
 bootstrap.c is a bootstrap interpreter for scheme, intended for bootstraping compile.scm.
 bootstrap-prims.c contains the primitive procedures for the bootstrapper
 No other files are implemented yet.
@@ -33,8 +33,11 @@ eq?
 bootstrap.c currently recognises the following special forms:
 if
 set!
-define (simple form only)
+define*
 quote
+lambda*
+
+*no sequential evaluation yet
 
 To test, type at a terminal:
 $ make

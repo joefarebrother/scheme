@@ -169,6 +169,11 @@ object *eq_proc(object *args)
 	return make_bool(car(args) == cadr(args));
 }
 
+object *apply_proc(object *args)
+{
+	return apply(car(args), cadr(args));
+}
+
 /*initialise*/
 #define SYMBUF_SIZE 20
 static object *to_sym(char *str)
@@ -226,4 +231,5 @@ void init_global_enviroment(void)
 
 	DEFPROC1(exit);
 	DEFPROC(eq?, eq);
+	DEFPROC1(apply);
 }

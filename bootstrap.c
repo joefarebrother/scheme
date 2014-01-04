@@ -207,17 +207,17 @@ object *cdr(object *obj)
 void set_car(object *pair, object *new)
 {
 	check_type(scm_pair, pair, 1);
+	new->refs++;
 	decrement_refs(car(pair));
 	pair->data.pair.car = new;
-	new->refs++;
 }
 
 void set_cdr(object *pair, object *new)
 {
 	check_type(scm_pair, pair, 1);
+	new->refs++;
 	decrement_refs(cdr(pair));
 	pair->data.pair.cdr = new;
-	new->refs++;
 }
 
 object *make_symbol(char *name)
@@ -661,7 +661,13 @@ object *eval_define(object *code, object *env)
 		return cadr(code);
 	} 
 		
-	/*other form of define to be implemented later */
+	if(check_type(scm_pair, cadr(code), 0)){
+		if(!check_length_between(3, 3, code)) /*change that later*/
+			eval_err("bad DEFINE form:", code);
+
+		define_var(caadr(code), make_lambda(cdadr(code), caddr(code), env), env);
+		return caadr(code);
+	}
 
 	eval_err("bad DEFINE form:", code);
 }
@@ -725,7 +731,7 @@ tailcall:
 		}
 
 		else if (car(code) == get_symbol("LAMBDA")){
-			if(!check_length_between(3, 3, code))
+			if(!check_length_between(3, 3, code)) /*change that later*/
 				eval_err("bad LAMBDA form:", code);
 
 			return make_lambda(cadr(code), caddr(code), env);
