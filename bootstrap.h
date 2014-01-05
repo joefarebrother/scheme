@@ -10,9 +10,6 @@ object *true;
 object *false;
 object *eof;
 object *empty_list;
-object *std_input;
-object *std_output;
-object *std_error;
 object *global_enviroment;
 
 enum obj_type {

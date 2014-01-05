@@ -202,6 +202,8 @@ object *eval_proc(object *illegal)
 	exit(1);
 }
 
+
+
 /*initialise*/
 #define SYMBUF_SIZE 25
 static object *to_sym(char *str)

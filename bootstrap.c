@@ -37,7 +37,10 @@ struct object {
 			struct object *args;
 			struct object *code;
 		} lambda;
-		FILE *file;
+		struct {
+			int direction;
+			FILE *handle;
+		} port;
 	} data;
 };
 
@@ -100,8 +103,7 @@ static object *alloc_obj(void)
 static void decrement_refs(object *obj)
 {
 	if(--(obj->refs) || obj == true || obj == false || 
-		 obj == empty_list || obj == eof || obj == std_input ||
-		 obj == std_output || obj == std_error)
+		 obj == empty_list || obj == eof)
 		return;
 
 	switch(obj->type){
@@ -119,7 +121,7 @@ static void decrement_refs(object *obj)
 		decrement_refs(obj->data.lambda.code);
 		break;
 	case scm_file:
-		fclose(obj->data.file);
+		fclose(obj->data.port.handle);
 		break;
 	/*no default branch necassary */
 	}
@@ -297,6 +299,27 @@ object *lambda_env(object *obj)
 	return obj->data.lambda.env;
 }
 
+object *make_port(FILE *handle, int direction)
+{
+	object *obj = alloc_obj();
+	obj->type - scm_file;
+	obj->data.port.handle = handle;
+	obj->data.port.direction = direction;
+	return obj;
+}
+
+int port_direction(object *obj)
+{
+	check_type(scm_file, obj, 1);
+	return obj->data.port.direction;
+}
+
+FILE *port_handle(object *obj)
+{
+	check_type(scm_file, obj, 1);
+	return obj->data.port.handle;
+}
+
 static void init_constants(void)
 {
 	true = alloc_obj();
@@ -307,18 +330,6 @@ static void init_constants(void)
 
 	empty_list = alloc_obj();
 	empty_list->type = scm_empty_list;
-
-	std_input = alloc_obj();
-	std_input->type = scm_file;
-	std_input->data.file = stdin;
-
-	std_output = alloc_obj();
-	std_output->type = scm_file;
-	std_output->data.file = stdout;
-
-	std_output = alloc_obj();
-	std_output->type = scm_file;
-	std_output->data.file = stderr;
 
 	eof = alloc_obj();
 	eof->type = scm_eof;
