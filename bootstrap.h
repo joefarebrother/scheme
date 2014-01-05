@@ -45,37 +45,38 @@ static inline int is_true(object *obj)
 }
 
 object *make_int(int value);
-int obj2int(object *obj);
+int obj2int(object *i);
 
 object *make_bool(int value);
-int obj2bool(object *obj);
+int obj2bool(object *b);
 
 object *make_char(char c);
-char obj2char(object *obj);
+char obj2char(object *ch);
 
 object *make_str(char *str);
-char *obj2str(object *obj);
+char *obj2str(object *str);
 
 object *cons(object *car, object *cdr);
-object *car(object *obj);
-object *cdr(object *obj);
+object *car(object *pair);
+object *cdr(object *pair);
 void set_car(object *pair, object *new);
 void set_cdr(object *pair, object *new);
 
 object *make_symbol(char *name);
-char *sym2str(object *obj);
-object *get_symbol(char *name);
+char *sym2str(object *sym);
+object *get_symbol(char *name) __attribute__((pure));
 
 object *make_prim_fun(prim_proc fun);
-prim_proc obj2prim_proc(object *obj);
+prim_proc obj2prim_proc(object *proc);
 
 object *make_lambda(object *args, object *code, object *env);
-object *lambda_code(object *obj);
-object *lambda_args(object *obj);
+object *lambda_code(object *lambda);
+object *lambda_args(object *lambda);
 
 object *make_port(FILE *handle, int direction);
-int port_direction(object *obj);
-FILE *port_handle(object *obj);
+int port_direction(object *port);
+FILE *port_handle(object *port);
+void set_port_handle_to_null(object *port);
 
 /*both of these should never be called*/
 object *apply_proc(object *);

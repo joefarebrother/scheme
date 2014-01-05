@@ -321,6 +321,12 @@ FILE *port_handle(object *obj)
 	return obj->data.port.handle;
 }
 
+void set_port_handle_to_null(object *obj)
+{
+	check_type(scm_file, obj, 1);
+	obj->data.port.handle = NULL;
+}
+
 static void init_constants(void)
 {
 	true = alloc_obj();
@@ -365,7 +371,7 @@ static void eat_ws(FILE *in)
 	while((c = getc(in)) != EOF){
 		if (isspace(c)) continue;
 		else if (c == ';'){  /* comment - ignore */
-			while((c = getc(in)) != '\n');
+			while((c = getc(in)) != '\n' && c != EOF);
 			continue;
 		}
 		ungetc(c, in);

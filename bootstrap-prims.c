@@ -19,6 +19,7 @@ DEF_TYPE_PRED(int);
 DEF_TYPE_PRED(pair);
 DEF_TYPE_PRED(symbol);
 DEF_TYPE_PRED(file);
+DEF_TYPE_PRED(eof);
 /*
 DEF_TYPE_PRED(prim_fun);
 DEF_TYPE_PRED(lambda);
@@ -198,6 +199,8 @@ static FILE *optional_input_port(object *args)
 			eval_err("Not an input port:", car(args));
 		else in = port_handle(car(args));
 	}
+	if (in == NULL)
+		eval_err("File has been closed:", car(args));
 	return in;
 }
 
@@ -214,6 +217,36 @@ static object *unread_char_proc(object *args)
 	return get_symbol("OK");
 }
 
+static object *is_input_port_proc(object *args)
+{
+	return make_bool(check_type(scm_file, car(args), 0) && port_direction(car(args)));
+}
+
+static object *close_file_proc(object *args)
+{
+	if(port_handle(car(args)) == NULL) return get_symbol("ALREADY-CLOSED");
+	fclose(port_handle(car(args)));
+	set_port_handle_to_null(car(args));
+	return get_symbol("OK");
+}
+
+static object *read_proc(object *args)
+{
+	return read(optional_input_port(args));
+}
+
+static object *load_proc(object *args)
+{
+	FILE *in = fopen(obj2str(car(args)), "r");
+	object *expr;
+	if (in == NULL)
+		eval_err("Could not load", car(args));
+	while((expr = read(in)) != eof){
+		print(stdout, eval(expr, global_enviroment), 1);
+		fputc('\n', stdout);
+	}
+	return get_symbol("PROGRAM-LOADED");
+}
 
 /*misc*/
 static object *exit_proc(object *args)
@@ -288,6 +321,7 @@ void init_enviroment(object *env)
 	DEFPROC(procedure?, is_proc);
 	DEFPROC(string?, is_str);
 	DEFPROC(port?, is_file);
+	DEFPROC(is_eof_object?, is_eof);
 
 	DEFPROC1(integer_2char);
 	DEFPROC1(char_2integer);
@@ -303,6 +337,12 @@ void init_enviroment(object *env)
 	DEFPROC1(open_input_file);
 	DEFPROC1(read_char);
 	DEFPROC1(unread_char);
+	DEFPROC(input_port?, is_input_port);
+	DEFPROC(close_input_file, close_file);
+	DEFPROC1(read);
+	DEFPROC1(load);
+
+	DEFPROC(close_output_file, close_file);
 
 	DEFPROC1(exit);
 	DEFPROC(eq?, eq);
@@ -311,7 +351,6 @@ void init_enviroment(object *env)
 }
 
 /*syntaxes*/
-
 static object *build_list(int length, va_list args)
 {
 	object *car;

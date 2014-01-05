@@ -47,6 +47,10 @@ bootstrap-prims.c currently defines:
 - open-input-file
 - read-char
 - unread-char (non-standard)
+- is-eof-object?
+- close-input-file
+- read
+- load
 
 
 bootstrap.c currently recognises the following special forms:
