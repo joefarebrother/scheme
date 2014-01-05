@@ -687,101 +687,105 @@ static object *eval_each(object *exprs, object *env)
 		return cons(eval(car(exprs), env), eval_each(cdr(exprs), env));
 }
 
-object *apply(object *proc, object *args)
-{
-	if(check_type(scm_prim_fun, proc, 0))
-		return (obj2prim_proc(proc))(args);
-	return eval(lambda_code(proc), 
-		extend_enviroment(lambda_args(proc), args, lambda_env(proc)));
-}
-
 
 object *eval(object *code, object *env)
 {
-	object *proc;
-	object *args;
+
 tailcall:
+#define tail(x) do{code = (x); goto tailcall;} while(0)
+
 	if(self_evaluating(code))
 		return code;
 	else if(check_type(scm_symbol, code, 0))
 		return get_var(code, env);
 
 	else if(check_type(scm_pair, code, 0)){
-		if (car(code) == get_symbol("QUOTE")){
+#define starts_with(s) (car(code) == get_symbol(#s))
+
+		if starts_with(QUOTE){
 			if (!check_length_between(2, 2, code))
 				eval_err("bad QUOTE form:", code);
 
 			return cadr(code);
 		}
 
-		else if (car(code) == get_symbol("DEFINE"))
+		else if starts_with(DEFINE)
 			return eval_define(code, env);
 
-		else if (car(code) == get_symbol("SET!")){
+		else if starts_with(SET!){
 			if(!check_length_between(3, 3, code) || !check_type(scm_symbol, cadr(code), 0))
 				eval_err("bad SET! form:", code);
 
-			args = eval(caddr(code), env);
-			set_var(cadr(code), args, env);
-			return args;
+			set_var(cadr(code), eval(caddr(code), env), env);
+			return get_symbol("OK");
 		}
 
-		else if (car(code) == get_symbol("IF")){
+		else if starts_with(IF){
 			if(!check_length_between(3, 4, code))
 				eval_err("bad IF form:", code);
 
-			code = 
+			tail(
 				is_true(eval(cadr(code), env)) ? caddr(code) : /* cond in C! */
-				cdddr(code) == empty_list      ? false       :
-												 cadddr(code);
-			goto tailcall;
+				cdddr(code) == empty_list      ? false       : /*undefined when no else branch*/
+				/* else */   cadddr(code));
 		}
 
-		else if (car(code) == get_symbol("LAMBDA")){
+		else if starts_with(LAMBDA){
 			if(!check_length_between(3, -1, code)) 
 				eval_err("bad LAMBDA form:", code);
 
 			return make_lambda(cadr(code), maybe_add_begin(cddr(code)), env);
 		}
 
-		else if (car(code) == get_symbol("BEGIN")){
+		else if starts_with(BEGIN){
 			if(!check_length_between(2, -1, code)) 
 				eval_err("bad BEGIN form:", code);
 
 			for(code = cdr(code); cdr(code) != empty_list; code = cdr(code))
 				eval(car(code), env);
 
-			code = car(code);
-			goto tailcall;
+			tail(car(code));
 		}
 
 		/*syntaxes*/
 
-		else if (car(code) == get_symbol("COND")){
-			code = cond2nested_if(code);
-			goto tailcall;
-		}
+		else if starts_with(COND)
+			tail(cond2nested_if(code));
 
-		else if (car(code) == get_symbol("LET")){
-			code = let2lambda(code);
-			goto tailcall;
-		}
+		else if starts_with(LET)
+			tail(let2lambda(code));
+
+		else if starts_with(AND)
+			tail(and2nested_if(code));
+
+		else if starts_with(OR)
+			tail(or2nested_if(code));
 
 		/*more stuff can go here*/
 
-		/*it's a call*/
-		proc = eval(car(code), env);
-		args = eval_each(cdr(code), env);
-		/*we can't use apply because it must be a tail call if lambda*/
-		if(check_type(scm_prim_fun, proc, 0))
-			return (obj2prim_proc(proc))(args);
+		else{	
+			/*it's a call*/
+			object *proc = eval(car(code), env);
+			object *args = eval_each(cdr(code), env);
+retry_apply:
+			if(check_type(scm_prim_fun, proc, 0)){
+				if(obj2prim_proc(proc) == apply_proc){/*apply should never be called    */
+					proc = car(args);                 /*directly because of tail call   */
+					args = cadr(args);                /*requirements. The implementation*/
+					goto retry_apply;                 /*in bootstrap-prims.c signals an */
+				}                                     /*error if it is.                 */
 
-		if(!check_type(scm_lambda, proc, 0))
-			eval_err("not a function:", proc);
-
-		env = extend_enviroment(lambda_args(proc), args, lambda_env(proc));
-		code = lambda_code(proc);
-		goto tailcall;
+				if(obj2prim_proc(proc) == eval_proc) /*same with eval*/
+					tail(eval(car(args), cadr(args)));
+				
+				return (obj2prim_proc(proc))(args);
+			}
+			if(!check_type(scm_lambda, proc, 0))
+				eval_err("not a function:", proc);
+	
+			env = extend_enviroment(lambda_args(proc), args, lambda_env(proc));
+			tail(lambda_code(proc));
+		}
 	}
 
 	else eval_err("can't evaluate", code);
@@ -907,11 +911,11 @@ void print(FILE *out, object *obj, int display)
  */
 int main(int argc, const char **argv)
 {
-	printf("Welcome to bootstrap scheme. \n%s",
+	printf("Welcome to bootstrap scheme. \n"
 		  "Press ctrl-c or type (exit) to exit. \n");
 
 	init_constants();
-	init_global_enviroment();
+	init_enviroment(global_enviroment);
 
 	while(1){
 		printf("> ");

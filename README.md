@@ -7,6 +7,7 @@ A scheme compiler
 bootstrap.c is a bootstrap interpreter for scheme, intended for bootstraping compile.scm.
 bootstrap-prims.c contains the primitive procedures for the bootstrapper
 No other files are implemented yet.
+
 bootstrap-prims.c currently defines:
 
 - char->integer
@@ -30,7 +31,11 @@ bootstrap-prims.c currently defines:
 - set-cdr!
 - eq?
 - apply
+- eval
 - exit
+- interaction-enviroment
+- enviroment
+- null-enviroment
 
 bootstrap.c currently recognises the following special forms:
 
@@ -42,6 +47,8 @@ bootstrap.c currently recognises the following special forms:
 - begin
 - cond, including =>
 - let
+- and
+- or
 
 
 To test, type at a terminal:

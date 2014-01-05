@@ -159,6 +159,24 @@ static object *less_than_proc(object *args)
 	return true;
 }
 
+/*enviroments*/
+static object *interaction_enviroment_proc(object *ignore)
+{
+	return global_enviroment;
+}
+
+static object *enviroment_proc(object *ignore)
+{
+	object *it = cons(empty_list, empty_list);
+	init_enviroment(it);
+	return it;
+}
+
+static object *null_enviroment_proc(object *ignore)
+{
+	return cons(empty_list, empty_list);
+}
+
 /*misc*/
 static object *exit_proc(object *args)
 {
@@ -170,13 +188,22 @@ static object *eq_proc(object *args)
 	return make_bool(car(args) == cadr(args));
 }
 
-static object *apply_proc(object *args)
+object *apply_proc(object *illegal)
 {
-	return apply(car(args), cadr(args));
+	fprintf(stderr, "Illegal state: the body of the apply"
+		 "primitive procedure should never be excecuted\n");
+	exit(1);
+}
+
+object *eval_proc(object *illegal)
+{
+	fprintf(stderr, "Illegal state: the body of the eval"
+		 "primitive procedure should never be excecuted\n");
+	exit(1);
 }
 
 /*initialise*/
-#define SYMBUF_SIZE 20
+#define SYMBUF_SIZE 25
 static object *to_sym(char *str)
 {
 	char buf[SYMBUF_SIZE];
@@ -196,9 +223,9 @@ static object *to_sym(char *str)
 
 
 #define DEFPROC(n, f) \
-	define_var(to_sym(#n), make_prim_fun(f ## _proc), global_enviroment)
+	define_var(to_sym(#n), make_prim_fun(f ## _proc), env)
 #define DEFPROC1(n) DEFPROC(n, n)
-void init_global_enviroment(void)
+void init_enviroment(object *env)
 {
 	DEFPROC(+, add);
 	DEFPROC(*, mul);
@@ -230,9 +257,14 @@ void init_global_enviroment(void)
 	DEFPROC1(string_2symbol);
 	DEFPROC1(symbol_2string);
 
+	DEFPROC1(interaction_enviroment);
+	DEFPROC1(enviroment);
+	DEFPROC1(null_enviroment);
+
 	DEFPROC1(exit);
 	DEFPROC(eq?, eq);
 	DEFPROC1(apply);
+	DEFPROC1(eval);
 }
 
 /*syntaxes*/
@@ -261,18 +293,28 @@ static object *list(int length, ...)
 object *cond2nested_if(object *cond)
 {
 	object *smaller_cond, *gensym = make_symbol("temp"); /*make symbol returns a new one*/
-	if (cdr(cond) == empty_list) return false;
+
+	if (cdr(cond) == empty_list) return false; /*undefined*/
+
 	if (caadr(cond) == get_symbol("ELSE")) return maybe_add_begin(cdadr(cond));
-	smaller_cond = cons(get_symbol("COND"), cddr(cond));
+
+	smaller_cond = cons(car(cond), cddr(cond)); /*car(cond) is the symbol 'cond. */
+
 	if (cdadr(cond) == empty_list)
-		return list(2, list(3, get_symbol("LAMBDA"), list(1, gensym),
-			list(4, get_symbol("IF"), gensym, gensym, smaller_cond)), caadr(cond));
+		return list(3, get_symbol("LET"), list(1, list(2, gensym, caadr(cond))),
+						list(4, get_symbol("IF"), gensym, 
+												  gensym,
+												  smaller_cond));
 
 	if (cadadr(cond) == get_symbol("=>"))
-		return list(2, list(3, get_symbol("LAMBDA"), list(1, gensym),
-			list(4, get_symbol("IF"), gensym, list(2, car(cddadr(cond)), gensym), smaller_cond)), caadr(cond));
+		return list(3, get_symbol("LET"), list(1, list(2, gensym, caadr(cond))),
+						list(4, get_symbol("IF"), gensym, 
+												  list(2, car(cadadr(cond)), gensym),
+												  smaller_cond));
 
-	return list(4, get_symbol("IF"), caadr(cond), maybe_add_begin(cdadr(cond)), smaller_cond);
+	return list(4, get_symbol("IF"), caadr(cond), 
+									 maybe_add_begin(cdadr(cond)), 
+									 smaller_cond);
 }
 
 #define DEF_BINDING_SELECTOR(name, cxr)          \
@@ -287,6 +329,31 @@ DEF_BINDING_SELECTOR(let_vals, cadar);
 
 object *let2lambda(object *let)
 {
-	return list(-1, list(-1, get_symbol("LAMBDA"), let_vars(cadr(let)), NULL, cddr(let)), 
-		NULL, let_vals(cadr(let)));
+	return list(-1, list(-1, get_symbol("LAMBDA"), let_vars(cadr(let)), 
+								NULL, cddr(let)), 
+					NULL, let_vals(cadr(let)));
+}
+
+object *and2nested_if(object *and){
+	if (cdr(and) == empty_list)
+		return true;
+	if (cddr(and) == empty_list)
+		return cadr(and);
+
+	return list(4, get_symbol("IF"), cadr(and), 
+									 cons(car(and), cddr(and)), 
+									 false);
+}
+
+object *or2nested_if(object *or){
+	object *gensym = make_symbol("temp");
+	if (cdr(or) == empty_list)
+		return false;
+	if (cddr(or) == empty_list)
+		return cadr(or);
+
+	return list(3, get_symbol("LET"), list(1, list(2, gensym, cadr(or))),
+					list(4, get_symbol("IF"), gensym,
+											  gensym,
+											  cons(car(or), cddr(or))));
 }

@@ -71,11 +71,14 @@ object *make_lambda(object *args, object *code, object *env);
 object *lambda_code(object *obj);
 object *lambda_args(object *obj);
 
-object *apply(object *fun, object *args);
+/*both of these should never be called*/
+object *apply_proc(object *);
+object *eval_proc(object *);
+
 
 object *maybe_add_begin(object *code);
 
-void init_global_enviroment(void);
+void init_enviroment(object *env);
 
 
 void eval_err(char *msg, object *code);
@@ -86,5 +89,7 @@ object *get_var(object *var, object *env);
 
 object *cond2nested_if(object *cond);
 object *let2lambda(object *let);
+object *and2nested_if(object *and);
+object *or2nested_if(object *or);
 
 #endif /*include guard*/
