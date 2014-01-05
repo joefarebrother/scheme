@@ -16,6 +16,14 @@ bootstrap-prims.c currently defines:
 - string->number
 - symbol->string
 - string->symbol
+- boolean?
+- char?
+- integer?
+- pair?
+- symbol?
+- procedure?
+- string?
+- port?
 - +
 - -
 - *
@@ -36,6 +44,10 @@ bootstrap-prims.c currently defines:
 - interaction-enviroment
 - enviroment
 - null-enviroment
+- open-input-file
+- read-char
+- unread-char (non-standard)
+
 
 bootstrap.c currently recognises the following special forms:
 

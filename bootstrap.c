@@ -302,12 +302,13 @@ object *lambda_env(object *obj)
 object *make_port(FILE *handle, int direction)
 {
 	object *obj = alloc_obj();
-	obj->type - scm_file;
+	obj->type = scm_file;
 	obj->data.port.handle = handle;
 	obj->data.port.direction = direction;
 	return obj;
 }
 
+/*1 is input, 0 is output*/
 int port_direction(object *obj)
 {
 	check_type(scm_file, obj, 1);
@@ -786,8 +787,10 @@ retry_apply:
 					goto retry_apply;                 /*in bootstrap-prims.c signals an */
 				}                                     /*error if it is.                 */
 
-				if(obj2prim_proc(proc) == eval_proc) /*same with eval*/
-					tail(eval(car(args), cadr(args)));
+				if(obj2prim_proc(proc) == eval_proc){ /*same with eval*/
+					env = cadr(args);
+					tail(car(args));
+				}
 				
 				return (obj2prim_proc(proc))(args);
 			}
@@ -859,6 +862,10 @@ void print(FILE *out, object *obj, int display)
 
 	case scm_lambda:
 		fprintf(out, "#<procedure>");
+		break;
+
+	case scm_file:
+		fprintf(out, "#<%s port>", port_direction(obj) ? "Input" : "Output");
 		break;
 
 	case scm_char:

@@ -18,6 +18,7 @@ DEF_TYPE_PRED(char);
 DEF_TYPE_PRED(int);
 DEF_TYPE_PRED(pair);
 DEF_TYPE_PRED(symbol);
+DEF_TYPE_PRED(file);
 /*
 DEF_TYPE_PRED(prim_fun);
 DEF_TYPE_PRED(lambda);
@@ -177,6 +178,43 @@ static object *null_enviroment_proc(object *ignore)
 	return cons(empty_list, empty_list);
 }
 
+/*IO - input*/
+static object *open_input_file_proc(object *args)
+{
+	FILE *in = fopen(obj2str(car(args)), "r");
+	if (in == NULL)
+		eval_err("Could not open", car(args));
+
+	return make_port(in, 1);
+}
+
+static FILE *optional_input_port(object *args)
+{
+	FILE *in;
+	if(args == empty_list) 
+		in = stdin;
+	else{
+		if (!port_direction(car(args)))
+			eval_err("Not an input port:", car(args));
+		else in = port_handle(car(args));
+	}
+	return in;
+}
+
+static object *read_char_proc(object *args)
+{
+	int c = getc(optional_input_port(args));
+	if (c == EOF) return eof;
+	else return make_char(c);
+}
+
+static object *unread_char_proc(object *args)
+{
+	ungetc(obj2char(car(args)), optional_input_port(cdr(args)));
+	return get_symbol("OK");
+}
+
+
 /*misc*/
 static object *exit_proc(object *args)
 {
@@ -201,8 +239,6 @@ object *eval_proc(object *illegal)
 		 "primitive procedure should never be excecuted\n");
 	exit(1);
 }
-
-
 
 /*initialise*/
 #define SYMBUF_SIZE 25
@@ -251,6 +287,7 @@ void init_enviroment(object *env)
 	DEFPROC(symbol?, is_symbol);
 	DEFPROC(procedure?, is_proc);
 	DEFPROC(string?, is_str);
+	DEFPROC(port?, is_file);
 
 	DEFPROC1(integer_2char);
 	DEFPROC1(char_2integer);
@@ -262,6 +299,10 @@ void init_enviroment(object *env)
 	DEFPROC1(interaction_enviroment);
 	DEFPROC1(enviroment);
 	DEFPROC1(null_enviroment);
+
+	DEFPROC1(open_input_file);
+	DEFPROC1(read_char);
+	DEFPROC1(unread_char);
 
 	DEFPROC1(exit);
 	DEFPROC(eq?, eq);

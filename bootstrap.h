@@ -4,6 +4,11 @@
 #include <stdio.h>
 #include "cxrs.h"
 
+/* If we're not using GNU C, elide __attribute__ */
+#ifndef __GNUC__
+#  define  __attribute__(x)  /*NOTHING*/
+#endif
+
 typedef struct object object;
 
 object *true;
@@ -34,7 +39,7 @@ void print(FILE *out, object *obj, int display);
 
 int check_type(enum obj_type type, object *obj, int err_on_false);
 
-static int is_true(object *obj)
+static inline int is_true(object *obj)
 {
 	return obj != false;
 }
@@ -68,6 +73,10 @@ object *make_lambda(object *args, object *code, object *env);
 object *lambda_code(object *obj);
 object *lambda_args(object *obj);
 
+object *make_port(FILE *handle, int direction);
+int port_direction(object *obj);
+FILE *port_handle(object *obj);
+
 /*both of these should never be called*/
 object *apply_proc(object *);
 object *eval_proc(object *);
@@ -78,7 +87,7 @@ object *maybe_add_begin(object *code);
 void init_enviroment(object *env);
 
 
-void eval_err(char *msg, object *code);
+void eval_err(char *msg, object *code) __attribute__((noreturn));
 
 void define_var(object *var, object *val, object *env);
 void set_var(object *var, object *val, object *env);
