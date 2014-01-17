@@ -248,6 +248,57 @@ static object *load_proc(object *args)
 	return get_symbol("PROGRAM-LOADED");
 }
 
+/*IO - output*/
+static object *open_output_file_proc(object *args)
+{
+	FILE *out = fopen(obj2str(car(args)), (cdr(args) == empty_list 
+										  || cadr(args) == get_symbol("OVERWRITE") ? 
+											 "w" : "a"));
+	if (out == NULL)
+		eval_err("Could not open", car(args));
+
+	return make_port(out, 0);
+}
+
+static FILE *optional_output_port(object *args)
+{
+	FILE *out;
+	if(args == empty_list) 
+		out = stdout;
+	else{
+		if (port_direction(car(args)))
+			eval_err("Not an output port:", car(args));
+		else out = port_handle(car(args));
+	}
+	if (out == NULL)
+		eval_err("File has been closed:", car(args));
+	return out;
+}
+
+static object *write_char_proc(object *args)
+{
+	fputc(obj2char(car(args)), optional_output_port(cdr(args)));
+	return get_symbol("OK");
+}
+
+static object *is_output_port_proc(object *args)
+{
+	return make_bool(check_type(scm_file, car(args), 0) && !port_direction(car(args)));
+}
+
+static object *write_proc(object *args)
+{
+	print(optional_output_port(cdr(args)), car(args), 0);
+	return get_symbol("OK");
+}
+
+static object *display_proc(object *args)
+{
+	print(optional_output_port(cdr(args)), car(args), 1);
+	return get_symbol("OK");
+}
+
+
 /*misc*/
 static object *exit_proc(object *args)
 {
@@ -271,6 +322,23 @@ object *eval_proc(object *illegal)
 	fprintf(stderr, "Illegal state: the body of the eval"
 		 "primitive procedure should never be excecuted\n");
 	exit(1);
+}
+
+static object *error_proc(object *args)
+{
+	object *reason;
+	fprintf(stderr, "Error in %s: ", sym2str(car(args)));
+	for(reason = cdr(args); reason != empty_list; reason = cdr(reason)){
+		print(stderr, car(reason), 1);
+		fputc(' ', stderr);
+	}
+	fputc('\n', stderr);
+	exit(1);
+}
+
+static object *system_proc(object *args)
+{
+	return(make_int(system(obj2str(car(args)))));
 }
 
 /*initialise*/
@@ -335,19 +403,26 @@ void init_enviroment(object *env)
 	DEFPROC1(null_enviroment);
 
 	DEFPROC1(open_input_file);
+	DEFPROC(close_input_file, close_file);
 	DEFPROC1(read_char);
 	DEFPROC1(unread_char);
 	DEFPROC(input_port?, is_input_port);
-	DEFPROC(close_input_file, close_file);
 	DEFPROC1(read);
 	DEFPROC1(load);
 
+	DEFPROC1(open_output_file);
 	DEFPROC(close_output_file, close_file);
+	DEFPROC1(write_char);
+	DEFPROC(output_port?, is_output_port);
+	DEFPROC1(write);
+	DEFPROC1(display);
 
 	DEFPROC1(exit);
 	DEFPROC(eq?, eq);
 	DEFPROC1(apply);
 	DEFPROC1(eval);
+	DEFPROC1(error);
+	DEFPROC1(system);
 }
 
 /*syntaxes*/

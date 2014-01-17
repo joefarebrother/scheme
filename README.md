@@ -51,6 +51,13 @@ bootstrap-prims.c currently defines:
 - close-input-file
 - read
 - load
+- open-output-file (takes a non-standard optional second argument a symbol indicating what to di if it already exists: overwrite or append. Default is overwrite.)
+- close-output-file
+- write-char
+- write
+- display
+- error
+- system (non-standard)
 
 
 bootstrap.c currently recognises the following special forms:

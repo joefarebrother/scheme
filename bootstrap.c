@@ -785,12 +785,12 @@ tailcall:
 			/*it's a call*/
 			object *proc = eval(car(code), env);
 			object *args = eval_each(cdr(code), env);
-retry_apply:
+apply:
 			if(check_type(scm_prim_fun, proc, 0)){
 				if(obj2prim_proc(proc) == apply_proc){/*apply should never be called    */
 					proc = car(args);                 /*directly because of tail call   */
 					args = cadr(args);                /*requirements. The implementation*/
-					goto retry_apply;                 /*in bootstrap-prims.c signals an */
+					goto apply;                       /*in bootstrap-prims.c signals an */
 				}                                     /*error if it is.                 */
 
 				if(obj2prim_proc(proc) == eval_proc){ /*same with eval*/
@@ -821,10 +821,7 @@ static void print_list(FILE *out, object *list, int display)
 	fputc('(', out);
 		print(out, car(list), display);
 	for (list = cdr(list); check_type(scm_pair, list, 0) ; list = cdr(list))
-	{
-		fputc(' ', out);
 		print(out, car(list), display);
-	}
 
 	if(list == empty_list)
 		fputc(')', out);
