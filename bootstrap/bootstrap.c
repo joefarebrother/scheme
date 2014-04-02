@@ -779,6 +779,12 @@ tailcall:
 		else if starts_with(OR)
 			tail(or2nested_if(code));
 
+		else if starts_with(DECLARE)
+			return false;
+
+		else if starts_with(EXPOSE-NAMES)
+			tail(expose_names2set(code));
+
 		/*more stuff can go here*/
 
 		else{	
@@ -820,8 +826,11 @@ static void print_list(FILE *out, object *list, int display)
 {
 	fputc('(', out);
 		print(out, car(list), display);
-	for (list = cdr(list); check_type(scm_pair, list, 0) ; list = cdr(list))
+
+	for (list = cdr(list); check_type(scm_pair, list, 0) ; list = cdr(list)){
+		fputc(' ', out);
 		print(out, car(list), display);
+	}
 
 	if(list == empty_list)
 		fputc(')', out);

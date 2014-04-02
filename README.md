@@ -1,9 +1,9 @@
 scheme
 ======
 
-A scheme compiler
+(what will be) A scheme compiler
 
-
+The bootstrap directory contains the following:
 bootstrap.c is a bootstrap interpreter for scheme, intended for bootstraping compile.scm.
 bootstrap-prims.c contains the primitive procedures for the bootstrapper
 No other files are implemented yet.
@@ -38,6 +38,7 @@ bootstrap-prims.c currently defines:
 - set-car!
 - set-cdr!
 - eq?
+- string-append
 - apply
 - eval
 - exit
@@ -46,8 +47,8 @@ bootstrap-prims.c currently defines:
 - null-enviroment
 - open-input-file
 - read-char
-- unread-char (non-standard)
-- is-eof-object?
+- unread-char (non-standard) - (unread-char char port) pushes a character back to an input port
+- eof-object?
 - close-input-file
 - read
 - load
@@ -57,7 +58,9 @@ bootstrap-prims.c currently defines:
 - write
 - display
 - error
-- system (non-standard)
+- string-append
+- system (non-standard) - excecutes shell code - i mainly need it to cc the compiled C
+- gensym
 
 
 bootstrap.c currently recognises the following special forms:
@@ -72,6 +75,8 @@ bootstrap.c currently recognises the following special forms:
 - let
 - and
 - or
+- expose-names (non-standard) - (expose-names (names...) exprs...) evaluates the exprs and sets the names to the value they were defined as in the body, and nothing else
+- declare (non-standard) - ignored by the interpreter, the compiler will use them to aid compilation
 
 
 To test, type at a terminal:
@@ -82,3 +87,4 @@ $ ./bootstrap
 ```
 
 Currently tested on Ubuntu only.
+SHOULD work on all OSs currently (though untested) but I only plan to support unix.

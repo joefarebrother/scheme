@@ -1,1 +1,0 @@
-;;;; The standard library for the scheme interpreter and compiler

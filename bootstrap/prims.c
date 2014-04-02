@@ -298,6 +298,26 @@ static object *display_proc(object *args)
 	return get_symbol("OK");
 }
 
+/*Strings & characters*/
+static object *string_append_proc(object *args)
+{
+	char *buf = malloc(sizeof(obj2str(car(args))) + sizeof(obj2str(cadr(args))) + 1);
+	object *ret;
+	if(buf == NULL)
+		eval_err("Out of memory", args);
+
+	strcpy(buf, obj2str(car(args)));
+	strcat(buf, obj2str(cadr(args)));
+
+	ret = make_str(buf);
+	free(buf);
+	return ret;
+}
+
+static object *string_length_proc(object *args)
+{
+	return make_int(strlen(obj2str(car(args))));
+}
 
 /*misc*/
 static object *exit_proc(object *args)
@@ -308,6 +328,26 @@ static object *exit_proc(object *args)
 static object *eq_proc(object *args)
 {
 	return make_bool(car(args) == cadr(args));
+}
+
+static object *gensym_proc(object *args)
+{
+	static int gensym_count;
+	char *buf;
+	char *name = args == empty_list ? "G" : sym2str(car(args));
+	object *ret;
+	char num[INT2STR_BUFLEN]; /*defined earlier*/
+
+	snprintf(num, INT2STR_BUFLEN, "%d", gensym_count++);
+	buf = malloc(strlen(name) + INT2STR_BUFLEN + 1);
+	if (buf == NULL)
+		eval_err("Out of memory", args);
+	strcpy(buf, name);
+	strcat(buf, num);
+
+	ret = make_symbol(buf);
+	free(buf);
+	return ret;
 }
 
 object *apply_proc(object *illegal)
@@ -389,7 +429,7 @@ void init_enviroment(object *env)
 	DEFPROC(procedure?, is_proc);
 	DEFPROC(string?, is_str);
 	DEFPROC(port?, is_file);
-	DEFPROC(is_eof_object?, is_eof);
+	DEFPROC(eof_object?, is_eof);
 
 	DEFPROC1(integer_2char);
 	DEFPROC1(char_2integer);
@@ -417,12 +457,16 @@ void init_enviroment(object *env)
 	DEFPROC1(write);
 	DEFPROC1(display);
 
+	DEFPROC1(string_append);
+	DEFPROC1(string_length);
+
 	DEFPROC1(exit);
 	DEFPROC(eq?, eq);
 	DEFPROC1(apply);
 	DEFPROC1(eval);
 	DEFPROC1(error);
 	DEFPROC1(system);
+	DEFPROC1(gensym);
 }
 
 /*syntaxes*/
@@ -491,7 +535,8 @@ object *let2lambda(object *let)
 					NULL, let_vals(cadr(let)));
 }
 
-object *and2nested_if(object *and){
+object *and2nested_if(object *and)
+{
 	if (cdr(and) == empty_list)
 		return true;
 	if (cddr(and) == empty_list)
@@ -502,7 +547,8 @@ object *and2nested_if(object *and){
 									 false);
 }
 
-object *or2nested_if(object *or){
+object *or2nested_if(object *or)
+{
 	object *gensym = make_symbol("temp");
 	if (cdr(or) == empty_list)
 		return false;
@@ -513,4 +559,16 @@ object *or2nested_if(object *or){
 					list(4, get_symbol("IF"), gensym,
 											  gensym,
 											  cons(car(or), cddr(or))));
+}
+
+static object *make_gensyms(object *same_length_list)
+{
+
+}
+
+object *expose_names2set(object *expr)
+{
+	object *names = cadr(expr);
+	object *code = maybe_add_begin(cddr(expr));
+	object *gensyms = make_gensyms(names);
 }
