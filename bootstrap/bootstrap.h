@@ -40,10 +40,7 @@ void print(FILE *out, object *obj, int display);
 
 int check_type(enum obj_type type, object *obj, int err_on_false);
 
-static inline int is_true(object *obj)
-{
-	return obj != false;
-}
+static inline int is_true(object *obj){return obj != false;}
 
 object *make_int(int value);
 int obj2int(object *i);

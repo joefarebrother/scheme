@@ -321,10 +321,10 @@ FILE *port_handle(object *obj)
 	return obj->data.port.handle;
 }
 
-void set_port_handle_to_null(object *obj)
+void set_port_handle_to_null(object *obj) /*can you guess what it does? */
 {
 	check_type(scm_file, obj, 1);
-	obj->data.port.handle = NULL;
+	obj->data.port.handle = NULL; /*here's a hint!*/
 }
 
 static void init_constants(void)
@@ -751,7 +751,7 @@ tailcall:
 			return false;
 
 		else if starts_with(EXPOSE-NAMES)
-			tail(expose_names2set(code));
+			tail(expose_names2set(code)); 
 
 		/*more stuff can go here*/
 
@@ -764,7 +764,7 @@ apply:
 				if(obj2prim_proc(proc) == apply_proc){/*apply should never be called    */
 					proc = car(args);                 /*directly because of tail call   */
 					args = cadr(args);                /*requirements. The implementation*/
-					goto apply;                       /*in bootstrap-prims.c signals an */
+					goto apply;                       /*in prims.c signals an           */
 				}                                     /*error if it is.                 */
 
 				if(obj2prim_proc(proc) == eval_proc){ /*same with eval*/

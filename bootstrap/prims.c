@@ -500,6 +500,7 @@ object *cond2nested_if(object *cond)
 									 smaller_cond);
 }
 
+/*can't use map (defined later) because cxrs are macros */
 #define DEF_BINDING_SELECTOR(name, cxr)          \
 static object *name(object *bindings)             \
 {                                                  \
@@ -543,20 +544,42 @@ object *or2nested_if(object *or)
 											  cons(car(or), cddr(or))));
 }
 
-static object *make_gensyms(object *same_length_list)
+static object *map(object *f(object *), object *list)
 {
-	object *gensyms = empty_list;
-	int i;
+	if (list == empty_list) return empty_list;
+	else return cons(f(car(list)), map(f, cdr(list)));
+}
+static object *map2(object *f(object *, object *), object *list1, object *list2)
+{
+	if (list1 == empty_list) return empty_list;
+	else return cons(f(car(list1), car(list2)), map2(f, cdr(list1), cdr(list2)));
+}
 
-	for(i = 1;same_length_list == empty_list; same_length_list = cdr(same_length_list), i++)
-		gensyms = cons(gensym_proc(NULL), gensyms);
+static object *set_to(object *var, object *val)
+{
+	return list(3, get_symbol("SET!"), var, val);
+}
 
-	return gensyms;
+static object *blank_define(object *var)
+{
+	return list(2, get_symbol("DEFINE"), var);
+}
+
+static object *dummy_binding(object *var)
+{
+	return list(2, var, false);
 }
 
 object *expose_names2set(object *expr)
 {
 	object *names = cadr(expr);
-	object *code = maybe_add_begin(cddr(expr));
-	object *gensyms = make_gensyms(names);
+	object *gensyms = map(gensym_proc, names);
+
+	return list(3, get_symbol("BEGIN"),
+					maybe_add_begin(map(blank_define, names)),
+					list(4, get_symbol("LET"), map(dummy_binding, gensyms),
+				   			list(4, get_symbol("LET"), map(dummy_binding, names),
+				   					maybe_add_begin(cddr(expr)),
+				   					maybe_add_begin(map2(set_to, gensyms, names))),
+				   			maybe_add_begin(map2(set_to, names, gensyms))));
 }
