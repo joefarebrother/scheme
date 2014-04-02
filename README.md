@@ -66,7 +66,7 @@ prims.c currently defines:
 - display
 - error
 - string-append
-- system (non-standard) - excecutes shell code - i mainly need it to cc the compiled C
+- system (non-standard) - excecutes shell code
 - gensym
 
 
