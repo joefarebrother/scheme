@@ -51,12 +51,9 @@ static object *symbol_2string_proc(object *args)
 	return make_str(sym2str(car(args)));
 }
 
-#define INT2STR_BUFLEN 12 /* a 32 bit integer is never longer than 12 digits in decimal */
 static object *number_2string_proc(object *args)
 {
-	char buf[INT2STR_BUFLEN];
-	snprintf(buf, INT2STR_BUFLEN, "%d", obj2int(car(args)));
-	return make_str(buf);
+	return make_str(int_to_string(obj2int(args)));
 }
 static object *string_2number_proc(object *args)
 {
@@ -301,16 +298,14 @@ static object *display_proc(object *args)
 /*Strings & characters*/
 static object *string_append_proc(object *args)
 {
-	char *buf = malloc(sizeof(obj2str(car(args))) + sizeof(obj2str(cadr(args))) + 1);
+	char *str = str_append(obj2str(car(args)), obj2str(cadr(args)));
 	object *ret;
-	if(buf == NULL)
+
+	if(str == NULL)
 		eval_err("Out of memory", args);
 
-	strcpy(buf, obj2str(car(args)));
-	strcat(buf, obj2str(cadr(args)));
-
-	ret = make_str(buf);
-	free(buf);
+	ret = make_str(str);
+	free(str);
 	return ret;
 }
 
@@ -332,22 +327,8 @@ static object *eq_proc(object *args)
 
 static object *gensym_proc(object *args)
 {
-	static int gensym_count;
-	char *buf;
-	char *name = args == empty_list ? "G" : sym2str(car(args));
-	object *ret;
-	char num[INT2STR_BUFLEN]; /*defined earlier*/
-
-	snprintf(num, INT2STR_BUFLEN, "%d", gensym_count++);
-	buf = malloc(strlen(name) + INT2STR_BUFLEN + 1);
-	if (buf == NULL)
-		eval_err("Out of memory", args);
-	strcpy(buf, name);
-	strcat(buf, num);
-
-	ret = make_symbol(buf);
-	free(buf);
-	return ret;
+	static count = 1;
+	return make_symbol(str_append("#:G", int_to_string(count++)));
 }
 
 object *apply_proc(object *illegal)
@@ -393,7 +374,8 @@ static object *to_sym(char *str)
 			exit(1);
 		}
 		buf[len] = *str == '_' ? '-' : 
-				   *str == '2' ? '>' : /* conversions: integer_2char becomes integer->char */
+				   *str == '2' ? '>' : /* a kludge that allows to create conversions (x->y) while using a valic C identifiers; 2 indicates conversion, 
+				   						  because of this kludge there are names like string_2number rather than string2number */
 				   				 toupper(*str);
 	}
 	buf[len] = '\0';
@@ -563,7 +545,13 @@ object *or2nested_if(object *or)
 
 static object *make_gensyms(object *same_length_list)
 {
+	object *gensyms = empty_list;
+	int i;
 
+	for(i = 1;same_length_list == empty_list; same_length_list = cdr(same_length_list), i++)
+		gensyms = cons(gensym_proc(NULL), gensyms);
+
+	return gensyms;
 }
 
 object *expose_names2set(object *expr)

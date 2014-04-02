@@ -1,5 +1,5 @@
-bootstrap: bootstrap.o prims.o
-	$(CC) bootstrap.o prims.o -o bootstrap
+bootstrap: bootstrap.o prims.o ../util.o
+	$(CC) bootstrap.o prims.o ../util.o -o bootstrap
 
 bootstrap.o: bootstrap.h
 	$(CC) -c bootstrap.c 
@@ -7,7 +7,7 @@ bootstrap.o: bootstrap.h
 prims.o: bootstrap.h
 	$(CC) -c prims.c
 
-bootstrap.h: ../cxrs.h
+bootstrap.h: ../cxrs.h ../util.h
 
 .PHONY: clean
 clean:

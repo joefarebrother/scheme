@@ -3,6 +3,7 @@
 
 #include <stdio.h>
 #include "../cxrs.h"
+#include "../util.h"
 
 /* If we're not using GNU C, elide __attribute__ */
 #ifndef __GNUC__

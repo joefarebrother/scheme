@@ -350,7 +350,7 @@ static void init_constants(void)
  * Read
  */
 
-static int is_delimiter(int c) /*int not char because it might be EOF */
+int is_delimiter(int c) /*int not char because it might be EOF */
 {
 	return isspace(c) || c == EOF ||
 		   c == '('   || c == ')' ||
@@ -358,39 +358,7 @@ static int is_delimiter(int c) /*int not char because it might be EOF */
 		   c == '\'';
 }
 
-static char peek(FILE *in){
-	char c = getc(in);
-	ungetc(c, in);
-	return c;
-}
 
-
-static void eat_ws(FILE *in)
-{
-	int c;
-	while((c = getc(in)) != EOF){
-		if (isspace(c)) continue;
-		else if (c == ';'){  /* comment - ignore */
-			while((c = getc(in)) != '\n' && c != EOF);
-			continue;
-		}
-		ungetc(c, in);
-		break;
-	}
-}
-
-static void eat_expected_str(FILE *in, char *str)
-{
-	char c;
-
-	while(*str != '\0'){
-		c = getc(in);
-		if(c != *str++){
-			fprintf(stderr, "Unexpected character: expecting %s, got %c\n", str, c);
-			exit(1);
-		}
-	}
-}
 
 static void expect_delim(FILE *in)
 {
