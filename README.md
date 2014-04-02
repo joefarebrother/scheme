@@ -4,11 +4,18 @@ scheme
 (what will be) A scheme compiler
 
 The bootstrap directory contains the following:
-bootstrap.c is a bootstrap interpreter for scheme, intended for bootstraping compile.scm.
-bootstrap-prims.c contains the primitive procedures for the bootstrapper
-No other files are implemented yet.
+bootstrap.c is a bootstrap interpreter for scheme, intended for bootstraping compile/compile.scm (currently non-existant because git doeesn't track empty directories).
+prims.c contains the primitive procedures for the bootstrapper
+lib.scm implements a standard library for the bootstrapper to run.
 
-bootstrap-prims.c currently defines:
+To test, type at a terminal:
+
+```shell
+$ make
+$ ./bootstrap/bootstrap
+```
+
+prims.c currently defines:
 
 - char->integer
 - integer->char
@@ -79,12 +86,6 @@ bootstrap.c currently recognises the following special forms:
 - declare (non-standard) - ignored by the interpreter, the compiler will use them to aid compilation
 
 
-To test, type at a terminal:
-
-```shell
-$ make
-$ ./bootstrap
-```
 
 Currently tested on Ubuntu only.
 SHOULD work on all OSs currently (though untested) but I only plan to support unix.
