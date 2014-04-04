@@ -102,6 +102,8 @@ bootstrap/lib.scm defines:
 - foldr
 - accumulate
 - all c...r functions
+- memq
+- memv
 
 Currently tested on Ubuntu only.
 SHOULD work on all OSs currently (though untested) but I only plan to support unix.
