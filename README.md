@@ -101,6 +101,7 @@ bootstrap/lib.scm defines:
 - foldl
 - foldr
 - accumulate
+- all c...r functions
 
 Currently tested on Ubuntu only.
 SHOULD work on all OSs currently (though untested) but I only plan to support unix.
