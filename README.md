@@ -13,6 +13,7 @@ To test, type at a terminal:
 ```shell
 $ make
 $ ./bootstrap/bootstrap
+&gt; (load "bootstrap/lib.scm")
 ```
 
 prims.c currently defines:
@@ -85,7 +86,21 @@ bootstrap.c currently recognises the following special forms:
 - expose-names (non-standard) - (expose-names (names...) exprs...) evaluates the exprs and sets the names to the value they were defined as in the body, and nothing else
 - declare (non-standard) - ignored by the interpreter, the compiler will use them to aid compilation
 
+bootstrap/lib.scm defines:
 
+- number?
+- list
+- not
+- append (varadic version)
+- length
+- reverse
+- vector? (always false)
+- range
+- map
+- filter
+- foldl
+- foldr
+- accumulate
 
 Currently tested on Ubuntu only.
 SHOULD work on all OSs currently (though untested) but I only plan to support unix.

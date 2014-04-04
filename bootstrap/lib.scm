@@ -3,23 +3,12 @@
 
 (define number? integer?)
 
+(define (null? x) (eq? x '()))
+
 (define (list . x) x)
 
-(define (filter p things)
-	(cond 
-		((null? things) '()
-		((p (car things)) (cons (car things) (filter p (cdr things))))
-		(else (filter p (cdr things))))))
-
-(define (foldl f x things)
-	(if (null? things)
-		x
-		(foldl f (f x (car things)) (car things))))
-(define (foldr f x things)
-	(if (null? things)
-		x
-		(f (foldr f x (cdr things)) (car things))))
-(define accumulate foldr)
+(define (not x)
+	(eq? x #f))
 
 (define (append x . ys)
 	(cond
@@ -49,7 +38,7 @@
 (define (range lo hi)
 	(if (= lo hi)
 		'()
-		(cons lo (range (+ 1 lo) hi)))
+		(cons lo (range (+ 1 lo) hi))))
 
 (define (map f things)
 	(if (null? things)
@@ -63,10 +52,20 @@
 			(f (car l))
 			(for-each f (cdr l)))))
 
-(define (not x)
-	(eq? x #f))
+(define (filter p things)
+	(cond 
+		((null? things) '()
+		((p (car things)) (cons (car things) (filter p (cdr things))))
+		(else (filter p (cdr things))))))
 
 
+(define (foldl f x things)
+	(if (null? things)
+		x
+		(foldl f (f x (car things)) (car things))))
 
-
-
+(define (foldr f x things)
+	(if (null? things)
+		x
+		(f (foldr f x (cdr things)) (car things))))
+(define accumulate foldr)
