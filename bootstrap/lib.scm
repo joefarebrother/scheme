@@ -45,19 +45,19 @@
 		((null? x) (apply append ys))
 		(else (cons (car x) (apply append (cons (cdr x) ys))))))
 
-(define (length things)
-	(define (iter things count)
-		(if (null? things)
+(define (length lst)
+	(define (iter lst count)
+		(if (null? lst)
 			count
-			(iter (cdr things) (+ 1 count))))
-	(iter things 0))
+			(iter (cdr lst) (+ 1 count))))
+	(iter lst 0))
 
-(define (reverse things)
+(define (reverse lst)
 	(define (iter front back)
 		(if (null? front)
 			back
 			(iter (cdr front) (cons (car front) back))))
-	(iter things '()))
+	(iter lst '()))
 
 (define (vector? v) #f) ;There are no vectors! 
                         ;But needed because the compiler wants to detect vectors.
@@ -69,10 +69,15 @@
 		'()
 		(cons lo (range (+ 1 lo) hi))))
 
-(define (map f things)
-	(if (null? things)
+(define (map f lst1 . more)
+	(define (mapcar f lst) 
+		(if (null? lst)
 		'()
-		(cons (f (car things)) (map f (cdr things)))))
+		(cons (f (car lst)) (map f (cdr lst)))))
+	(if (null? lst1)
+		'()
+		(cons (apply f (mapcar car (cons lst1 more))) 
+			(apply map (cons f (mapcar cdr (cons lst1 more)))))))
 
 (define (for-each f l)
 	(if (null? l)
@@ -81,32 +86,35 @@
 			(f (car l))
 			(for-each f (cdr l)))))
 
-(define (filter p things)
+(define (filter p lst)
 	(cond 
-		((null? things) '()
-		((p (car things)) (cons (car things) (filter p (cdr things))))
-		(else (filter p (cdr things))))))
+		((null? lst) '()
+		((p (car lst)) (cons (car lst) (filter p (cdr lst))))
+		(else (filter p (cdr lst))))))
 
 
-(define (foldl f x things)
-	(if (null? things)
+(define (foldl f x lst)
+	(if (null? lst)
 		x
-		(foldl f (f x (car things)) (car things))))
+		(foldl f (f x (car lst)) (car lst))))
 
-(define (foldr f x things)
-	(if (null? things)
+(define (foldr f x lst)
+	(if (null? lst)
 		x
-		(f (foldr f x (cdr things)) (car things))))
+		(f (foldr f x (cdr lst)) (car lst))))
 (define accumulate foldr)
 
-(define (memq x lst)
+(define (mem equiv? x lst)
 	(cond
 		((null? lst) #f)
-		((eq? x (car lst)) lst)
-		(else (memq x (cdr lst)))))
+		((equiv? x (car lst)) lst)
+		(else (mem equiv? x (cdr lst)))))
+(define (memq x lst) (mem eq? x lst))
+;eqv and equal don't exist
 
-(define (assq key table)
+(define (assoc-test equiv? key table)
 	(cond 
 		((null? table) #f)
-		((eq? x (caar table)) (car table))
-		(else (assq x (cdr table)))))
+		((equiv? x (caar table)) (car table))
+		(else (assoc-test equiv (cdr table)))))
+(define (assq key table) (assoc-test eq? x lst))

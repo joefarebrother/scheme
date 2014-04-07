@@ -70,8 +70,7 @@ static object *cdr_proc(object *args){return cdar(args);}
 
 static object *cons_proc(object *args)
 {
-	set_cdr(args, cadr(args)); /*args is allocated fresh each time!*/
-	return args;
+	return cons(car(args), cadr(args));
 }
 
 static object *set_car_proc(object *args)
