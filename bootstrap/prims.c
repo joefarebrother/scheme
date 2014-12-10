@@ -373,7 +373,7 @@ static object *to_sym(char *str)
 			exit(1);
 		}
 		buf[len] = *str == '_' ? '-' : 
-				   *str == '2' ? '>' : /* a kludge that allows to create conversions (x->y) while using a valic C identifiers; 2 indicates conversion, 
+				   *str == '2' ? '>' : /* a kludge that allows to create conversions (x->y) while using a valid C identifiers; 2 indicates conversion, 
 				   						  because of this kludge there are names like string_2number rather than string2number */
 				   				 toupper(*str);
 	}
