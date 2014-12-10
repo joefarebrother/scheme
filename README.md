@@ -83,7 +83,6 @@ bootstrap.c currently recognises the following special forms:
 - let
 - and
 - or
-- expose-names (non-standard) - (expose-names (names...) exprs...) evaluates the exprs and sets the names to the value they were defined as in the body, and nothing else
 - declare (non-standard) - ignored by the interpreter, the compiler will use them to aid compilation
 
 bootstrap/lib.scm defines:

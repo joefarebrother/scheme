@@ -1,6 +1,6 @@
 scheme: bootstrap/bootstrap
 
-bootstrap/bootstrap: cxrs.h util.o
+bootstrap/bootstrap: cxrs.h util.o bootstrap/bootstrap.c bootstrap/bootstrap.h bootstrap/prims.c
 	cd bootstrap && $(MAKE)
 
 cxrs.h: cxrs.sh

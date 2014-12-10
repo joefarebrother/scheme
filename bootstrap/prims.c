@@ -569,16 +569,3 @@ static object *dummy_binding(object *var)
 	return list(2, var, false);
 }
 
-object *expose_names2set(object *expr)
-{
-	object *names = cadr(expr);
-	object *gensyms = map(gensym_proc, names);
-
-	return list(3, get_symbol("BEGIN"),
-					maybe_add_begin(map(blank_define, names)),
-					list(4, get_symbol("LET"), map(dummy_binding, gensyms),
-				   			list(4, get_symbol("LET"), map(dummy_binding, names),
-				   					maybe_add_begin(cddr(expr)),
-				   					maybe_add_begin(map2(set_to, gensyms, names))),
-				   			maybe_add_begin(map2(set_to, names, gensyms))));
-}

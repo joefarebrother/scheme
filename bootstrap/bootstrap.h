@@ -96,6 +96,5 @@ object *cond2nested_if(object *cond);
 object *let2lambda(object *let);
 object *and2nested_if(object *and);
 object *or2nested_if(object *or);
-object *expose_names2set(object *form);
 
 #endif /*include guard*/

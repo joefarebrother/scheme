@@ -240,7 +240,7 @@ char *sym2str(object *obj)
 object *get_symbol(char *name)
 {
 	/* 
-	 * This is a SLOW algorithm (O(n))
+	 * This is a slow algorithm (O(n))
 	 * but it's the simplest one and 
 	 * speed isn't important here so
 	 * it's ok.
@@ -674,8 +674,10 @@ static object *eval_each(object *exprs, object *env)
 }
 
 
+
 object *eval(object *code, object *env)
 {
+#define starts_with(s) (car(code) == get_symbol(#s))
 
 tailcall:
 #define tail(x) do{code = (x); goto tailcall;} while(0)
@@ -686,7 +688,7 @@ tailcall:
 		return get_var(code, env);
 
 	else if(check_type(scm_pair, code, 0)){
-#define starts_with(s) (car(code) == get_symbol(#s))
+
 
 		if starts_with(QUOTE){
 			if (!check_length_between(2, 2, code))
@@ -750,8 +752,6 @@ tailcall:
 		else if starts_with(DECLARE)
 			return false;
 
-		else if starts_with(EXPOSE-NAMES)
-			tail(expose_names2set(code)); 
 
 		/*more stuff can go here*/
 
@@ -907,6 +907,17 @@ void print(FILE *out, object *obj, int display)
 /*
  * REPL
  */
+
+void set_arg_var(int argc, const char **argv)
+{
+	object *list = empty_list;
+	while(argc){
+		list = cons(make_str((char *) argv[argc-1]), list);
+		argc--;
+	}
+	define_var(get_symbol("ARGS"), list, global_enviroment);
+}
+
 int main(int argc, const char **argv)
 {
 	printf("Welcome to bootstrap scheme. \n"
@@ -914,10 +925,11 @@ int main(int argc, const char **argv)
 
 	init_constants();
 	init_enviroment(global_enviroment);
+	set_arg_var(argc, argv);
 
 	while(1){
 		printf("> ");
-		print(stdout, eval(read(stdin), global_enviroment), argc - 1);
+		print(stdout, eval(read(stdin), global_enviroment), 0);
 		printf("\n");
 	}
 }
