@@ -104,5 +104,9 @@ bootstrap/lib.scm defines:
 - memq
 - memv
 
+The following (non-standard) variable is availiable on startup:
+
+ - args - command line arguments
+
 Currently tested on Ubuntu only.
 SHOULD work on all OSs currently (though untested) but I only plan to support unix.
